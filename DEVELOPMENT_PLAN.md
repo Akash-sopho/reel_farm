@@ -80,7 +80,7 @@ P1.5-T01 (Spec) → P1.5-T02 (yt-dlp Service) → P1.5-T03 (API + Queue) → P1.
 | P1.5-T01 | Spec — Video Intake API | Planner | P0-T03 | ✅ DONE |
 | P1.5-T02 | Implement yt-dlp Video Fetcher Service | Dev | P1.5-T01 | ✅ DONE |
 | P1.5-T03 | Implement Intake API + Job Queue | Dev | P1.5-T02 | ✅ DONE |
-| P1.5-T04 | Frontend — Collection Workspace Page | Dev | P1.5-T03 | ⏳ PENDING |
+| P1.5-T04 | Frontend — Collection Workspace Page | Dev | P1.5-T03 | ✅ DONE |
 | P1.5-T05 | Test — Intake Pipeline | Tester | P1.5-T03 | ⏳ PENDING |
 
 ### Phase 2+ — Planned (IDs reserved)

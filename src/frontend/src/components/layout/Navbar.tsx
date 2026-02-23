@@ -21,6 +21,12 @@ export const Navbar: React.FC = () => {
               Templates
             </Link>
             <Link
+              to="/collect"
+              className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium"
+            >
+              Collect
+            </Link>
+            <Link
               to="/projects"
               className="text-gray-700 hover:text-blue-600 px-3 py-2 text-sm font-medium"
             >

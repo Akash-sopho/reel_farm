@@ -3,6 +3,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Home } from '@/pages/Home';
 import { Templates } from '@/pages/Templates';
 import { Editor } from '@/pages/Editor';
+import { Collect } from '@/pages/Collect';
 import { NotFound } from '@/pages/NotFound';
 import '@/index.css';
 
@@ -16,6 +17,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/editor/:templateId" element={<Editor />} />
+            <Route path="/collect" element={<Collect />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>

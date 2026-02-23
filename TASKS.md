@@ -8,20 +8,6 @@
 
 ## Active Queue — immediately startable
 
-### [P1.5-T04] Frontend — Collection Workspace Page
-**Status:** PENDING | **Role:** Developer | **Depends:** P1.5-T03 ✅
-**Spec:** N/A
-**Output:** `src/frontend/src/pages/Collect.tsx` · `src/frontend/src/components/UrlBatchInput.tsx` · `src/frontend/src/components/CollectionGrid.tsx`
-**What:** Build `/collect` page with URL input form (1-20 Instagram/TikTok URLs), collected videos grid with real-time status updates, tags editor. UI: Left panel (upload form), center (videos grid), right (tags panel). Real-time status: poll GET /api/intake/collections every 2-3 seconds.
-**Done when:**
-- URL input form accepts Instagram/TikTok URLs
-- Submit button calls POST /api/intake/fetch
-- Grid displays collected videos with status badges (PENDING, FETCHING, READY, FAILED)
-- Status updates in real-time as videos are processed
-- Tags can be edited and saved via PATCH /api/intake/videos/:id
-- `npx tsc --noEmit` passes in `src/frontend`
-
----
 
 ### [P1.5-T05] Test — Intake Pipeline
 **Status:** PENDING | **Role:** Tester | **Depends:** P1.5-T03 ✅

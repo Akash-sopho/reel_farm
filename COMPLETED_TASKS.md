@@ -1115,3 +1115,109 @@ Implemented complete video intake pipeline: REST API for submitting Instagram/Ti
 - Unblocks: P1.5-T04 (frontend collection page) and P1.5-T05 (integration tests)
 
 ---
+
+## [P1.5-T04] Frontend — Collection Workspace Page
+
+**Completed:** Phase 1.5 | **Role:** Developer
+
+**Summary:**
+
+Created `/collect` page with three-panel interface for managing video collections: URL submission form, real-time video grid with status tracking, and tags/notes editor.
+
+**Files created:**
+- `src/frontend/src/pages/Collect.tsx` — Main page with 3-panel layout and polling logic
+- `src/frontend/src/components/collect/UrlBatchInput.tsx` — Left panel with URL form
+- `src/frontend/src/components/collect/CollectionGrid.tsx` — Center panel with video cards
+- `src/frontend/src/components/collect/TagsPanel.tsx` — Right panel with tags/notes editor
+
+**Files modified:**
+- `src/frontend/src/App.tsx` — Added `/collect` route
+- `src/frontend/src/components/layout/Navbar.tsx` — Added "Collect" nav link
+
+**Technical Details:**
+
+**1. Collect Page (`Collect.tsx`)**
+
+- **Three-panel layout:**
+  - Left (300px): URL input form
+  - Center (flex-1): Videos grid
+  - Right (300px, conditional): Tags editor
+
+- **Real-time polling:**
+  - Fetches GET /api/intake/collections every 2.5 seconds
+  - Updates video list automatically
+  - Cleanup: interval cleared on unmount
+
+- **State management:**
+  - `videos` — collected video list
+  - `selectedVideo` — currently selected video for editing
+  - `page` — pagination (supports page navigation)
+  - `loading`, `error` — form state
+
+- **Features:**
+  - POST /api/intake/fetch on URL submission
+  - Auto-updates video list after submission
+  - Syncs selectedVideo when videos list changes
+  - Error banner for user feedback
+
+**2. UrlBatchInput Component**
+
+- Textarea for 1-20 URLs (one per line)
+- URL validation: splits on newlines, filters empty
+- Error handling: max 20 validation, empty check
+- Disabled state during submission
+- Platform info display (Instagram, TikTok)
+- Responsive button with loading spinner
+
+**3. CollectionGrid Component**
+
+- Responsive grid: 2 cols on mobile, 3 on lg, 4 on xl
+- Video card design:
+  - Thumbnail area (200px high) with fallback icon
+  - Status badge (PENDING/FETCHING/READY/FAILED) with color coding
+  - Platform indicator (IG/TT)
+  - Title, duration, tags display
+  - Error message for failed videos
+- Click to select video (ring highlight)
+- Tag display: shows first 2 tags + counter
+
+**4. TagsPanel Component**
+
+- Conditional render: only shows when video selected
+- **Sections:**
+  - Video info display (title, URL, platform)
+  - Notes textarea (500 char max)
+  - Tags manager (max 20, 30 char each)
+  - Save button (only enabled on changes)
+
+- **Tag management:**
+  - Add button + Enter key support
+  - Remove tag with × button
+  - Prevents duplicates, validates length
+  - Tracks tag count
+
+- **Update flow:**
+  - PATCH /api/intake/videos/:id on save
+  - Success/error messages
+  - Re-syncs with video list after save
+  - Change detection for button enable/disable
+
+**5. Integration**
+
+- Route: `/collect` in App.tsx
+- Nav link in Navbar
+- API integration: POST fetch, GET collections, PATCH videos
+- Real-time updates via polling (2.5s interval)
+- User feedback: loading states, error messages, success confirmation
+
+**Acceptance Criteria Met:**
+- ✅ URL input form accepts 1-20 Instagram/TikTok URLs
+- ✅ Submit button calls POST /api/intake/fetch
+- ✅ Grid displays videos with status badges (4 statuses, color-coded)
+- ✅ Real-time status updates via GET polling every 2.5s
+- ✅ Tags can be edited and saved via PATCH /api/intake/videos/:id
+- ✅ Three-panel layout (left form, center grid, right editor)
+- ✅ TypeScript strict mode passes
+- ✅ Responsive design (mobile-first grid)
+
+---
