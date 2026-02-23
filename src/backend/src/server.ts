@@ -27,6 +27,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 // Routes
 app.use('/health', healthRoutes);
 app.use('/api/templates', templatesRoutes);
+// Note: Templates routes handle /api/templates and /api/templates/:id
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

@@ -677,18 +677,919 @@ Export a function `validateTemplate(data: unknown): TemplateSchema` that throws 
 
 ---
 
-## Phase 1: MVP - Template Gallery & Slot-Fill Editor
+## Phase 1: MVP — Template Gallery + Editor + Export
 
-Phase 1 tasks will be added by the supervisor as Phase 0 completes.
+**Goal:** Browse templates → fill slots with images and text → preview → export MP4.
+
+Immediately startable (all deps are DONE): **P1-T01, P1-T05, P1-T07, P1-T09**
 
 ---
 
-## Phase 1+ Tasks
+## [P1-T01] Spec — Template CRUD API
 
-Phase 1 tasks will be added by the supervisor as Phase 0 completes. The following task IDs are reserved:
+**Status:** DONE
+**Phase:** 1
+**Depends on:** P0-T08
+**Agent role:** Planner
+**Spec file:** `specs/api/templates.spec.md` (create this file)
 
-- `P1-T01` through `P1-T19` — MVP: Template gallery, editor, render, export
-- `P1.5-T01` through `P1.5-T05` — Video intake pipeline
-- `P2-T01` through `P2-T11` — AI suggestions, music
-- `P3-T01` through `P3-T07` — Publishing
-- `P4-T01` through `P4-T07` — Template extraction
+### What to do
+
+Write the full API spec for template endpoints at `specs/api/templates.spec.md`.
+
+Cover these endpoints:
+- `GET /api/templates` — list templates with optional filters and pagination
+- `GET /api/templates/:id` — get single template including full schema
+- `POST /api/templates` — create a template (admin only for now)
+- `PATCH /api/templates/:id` — update template fields
+
+For each endpoint define:
+- Request shape (path params, query params, body — with TypeScript types)
+- Response shape (success and error cases — with example JSON)
+- HTTP status codes for all cases (200, 201, 400, 404, 422, 500)
+- Query params for `GET /api/templates`: `category`, `tags` (comma-separated), `page` (default 1), `limit` (default 20, max 100), `published` (boolean)
+- Pagination response shape: `{ data: Template[], total: number, page: number, limit: number }`
+- Zod validation errors should be returned as `{ error: "Validation failed", code: "VALIDATION_ERROR", details: { fieldName: "message" } }`
+
+Include example JSON request/response payloads for every endpoint.
+
+### Acceptance criteria
+
+- `specs/api/templates.spec.md` exists and covers all 4 endpoints
+- Every endpoint has: request shape, response shape, error cases, example JSON
+- Spec is unambiguous enough that a developer can implement it without asking questions
+- Pagination is fully specified (what happens at page 0, limit > 100, etc.)
+
+### Output
+
+**File created:**
+- `specs/api/templates.spec.md` — Comprehensive API specification covering:
+  - GET /api/templates (list with pagination, filtering)
+  - GET /api/templates/:id (get single template)
+  - POST /api/templates (create template, admin only)
+  - PATCH /api/templates/:id (update template, admin only)
+
+**Specification details:**
+- Complete request/response shapes with TypeScript interfaces
+- All query parameters documented (category, tags, page, limit, published)
+- Pagination fully specified (1-indexed, behavior at boundaries)
+- Error cases and status codes for all endpoints (200, 201, 400, 404, 409, 401, 500)
+- Zod validation error format with fieldName details
+- Example JSON payloads for every endpoint
+- Validation rules for all fields (name, slug, category, schema, etc.)
+- Slug uniqueness constraint and conflict handling
+- Partial update semantics for PATCH endpoint
+
+**Acceptance criteria met:**
+- ✅ All 4 endpoints fully specified
+- ✅ Request/response shapes defined with examples
+- ✅ Error cases and status codes documented
+- ✅ Pagination unambiguous (page 1-indexed, limit max 100, empty data when page > max)
+- ✅ Spec is implementation-ready without ambiguity
+
+---
+
+## [P1-T02] Implement Template CRUD API
+
+**Status:** DONE
+**Phase:** 1
+**Depends on:** P1-T01, P0-T04
+**Agent role:** Developer
+**Spec file:** `specs/api/templates.spec.md`
+
+### What to do
+
+Implement the template API routes in `src/backend/src/routes/templates.ts` and a service in `src/backend/src/services/template.service.ts`.
+
+**Routes to implement (matching spec exactly):**
+- `GET /api/templates` — list with `category`, `tags`, `page`, `limit`, `published` query params; return paginated response
+- `GET /api/templates/:id` — return full template including `schema` JSONB field; 404 if not found
+- `POST /api/templates` — create; validate body with Zod; return 201 with created template
+- `PATCH /api/templates/:id` — partial update; validate with Zod; 404 if not found
+
+**Service layer (`template.service.ts`):**
+- `listTemplates(filters, pagination)` — Prisma query with `where` clause for filters
+- `getTemplateById(id)` — Prisma findUnique
+- `createTemplate(data)` — Prisma create
+- `updateTemplate(id, data)` — Prisma update
+
+**Registration:** Mount the router at `/api/templates` in `src/backend/src/server.ts` (replace the stub from P0-T04).
+
+Use Zod for all input validation. Return standard error format `{ error, code, details }` on failures.
+
+### Acceptance criteria
+
+- `GET /api/templates` returns seeded templates from the database
+- Filters work: `?category=lifestyle` returns only lifestyle templates
+- `?tags=minimal,vertical` filters by tags (OR logic — matches any tag)
+- Pagination: `?page=2&limit=5` returns correct slice and total
+- `GET /api/templates/:id` returns full template with `schema` field
+- `GET /api/templates/nonexistent` returns `404 { error: "Template not found", code: "NOT_FOUND" }`
+- `POST /api/templates` with invalid body returns `400` with Zod field errors
+- `PATCH /api/templates/:id` updates only the provided fields
+
+### Output
+
+**Files created:**
+- `src/backend/src/types/template.ts` — Template type definitions (mirrors shared types for backend use)
+- `src/backend/src/services/template.service.ts` — Service layer with functions:
+  - `listTemplates(filters, pagination)` — Paginated list with category/tags filtering
+  - `getTemplateById(id)` — Get single template
+  - `createTemplate(data)` — Create new template with slug uniqueness check
+  - `updateTemplate(id, data)` — Partial update with slug uniqueness check
+- `src/backend/src/validation/template.ts` — Zod validators:
+  - `ListTemplatesQuerySchema` — Query params validation
+  - `CreateTemplateSchema` — Request body validation
+  - `UpdateTemplateSchema` — Partial update validation
+- `src/backend/src/routes/templates.ts` — Express route handlers:
+  - `GET /api/templates` — List with pagination and filters
+  - `GET /api/templates/:id` — Get single template
+  - `POST /api/templates` — Create (returns 201)
+  - `PATCH /api/templates/:id` — Update (partial)
+
+**Implementation details:**
+- All routes use Zod validation with descriptive error responses
+- Proper HTTP status codes (200, 201, 400, 404, 409)
+- Tags filtering with OR logic (matches any tag)
+- Pagination with boundary checks
+- Slug uniqueness constraint enforcement
+- Duplicate slug returns 409 Conflict
+- Service handles tag parsing from comma-separated strings
+- Duration auto-calculated from schema scenes
+
+**Verification:**
+- ✅ TypeScript type checking passes
+- ✅ All 4 endpoints implemented per spec
+- ✅ Zod validation on all inputs
+- ✅ Standard error format `{ error, code, details }`
+- ✅ Router mounted at `/api/templates` in server
+
+---
+
+## [P1-T03] Test — Template CRUD API
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T02
+**Agent role:** Tester
+**Spec file:** `specs/api/templates.spec.md`
+
+### What to do
+
+Write integration tests in `tests/integration/templates.test.ts` using supertest against the live Express app connected to a test database.
+
+Cover per endpoint:
+
+`GET /api/templates`:
+- Returns array of templates with correct shape
+- `category` filter returns only matching templates
+- `tags` filter works
+- Pagination returns correct `data`, `total`, `page`, `limit`
+- `limit=0` or `limit=200` returns 400 or is clamped per spec
+
+`GET /api/templates/:id`:
+- Returns full template with `schema` field
+- Returns 404 for unknown ID
+- Returns 400 for malformed ID (if using UUID validation)
+
+`POST /api/templates`:
+- Creates template and returns 201 with ID
+- Missing required fields returns 400 with field-level errors
+- Duplicate slug returns appropriate error
+
+`PATCH /api/templates/:id`:
+- Updates only provided fields, leaves others unchanged
+- Returns 404 for unknown ID
+
+### Acceptance criteria
+
+- All tests pass against the test database
+- Minimum coverage: happy path + 3 error cases per endpoint
+- Test file is self-contained (seeds its own test data, cleans up after)
+- No tests depend on execution order
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T04] Seed 5–8 Real Templates
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T02, P0-T06
+**Agent role:** Developer
+**Spec file:** N/A
+
+### What to do
+
+Design and implement 5–8 realistic Instagram Reel template JSON schemas covering different trend formats. For each template, also create the corresponding Remotion composition.
+
+**Required template categories (pick 5-8):**
+1. **Photo Dump** — 5-7 photos in quick cuts, casual aesthetic
+2. **Quote Card** — bold text over gradient/image, 1-3 scenes
+3. **Before & After** — 2-scene split reveal
+4. **Day in My Life** — 5-6 clips with text overlays per scene
+5. **Product Showcase** — 3-4 scenes with product image + feature text
+6. **Listicle** — numbered list reveal, 4-6 items
+7. **Travel Montage** — 5+ landscape photos with location text
+8. **Motivational** — single impactful text + background image
+
+**For each template, define a `TemplateSchema` JSON** (matching the type from P0-T08) with:
+- Realistic `slots` (2-6 image slots and 1-4 text slots per template)
+- `scenes` with correct `durationSeconds` (total 10-30s per template)
+- `audioTags` for music matching (e.g., `["upbeat", "energetic"]`)
+- `defaultMusic` set to one of the seeded music track IDs
+
+**For each template, create a Remotion composition** in `src/video/src/templates/{TemplateName}.tsx` that:
+- Accepts `{ slotFills: SlotFill[] }` as props
+- Renders placeholder content when a slot is unfilled (show a grey box with slot label)
+- Uses existing placeholder components from `src/video/src/components/` (even if they're stubs)
+- Registers in `src/video/src/Root.tsx` as a composition
+
+**Update `scripts/seed-templates.ts`** to insert all 5-8 templates (delete old placeholder data first).
+
+### Acceptance criteria
+
+- `npx prisma db seed` inserts all templates without errors
+- Each template has correct `TemplateSchema` JSON (validates against `validateTemplate` from P0-T08)
+- Each template's Remotion composition is visible in Remotion Studio
+- Templates span at least 4 different categories
+- Scene counts vary: some templates have 3 scenes, some 6-7
+- Total durations range from 10s to 30s
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T05] Spec — Media Upload API
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P0-T08
+**Agent role:** Planner
+**Spec file:** `specs/api/media.spec.md` (create this file)
+
+### What to do
+
+Write the media upload API spec at `specs/api/media.spec.md`.
+
+Cover these endpoints:
+- `POST /api/media/upload` — multipart form data, accepts single image file
+- `GET /api/media/presigned-url` — returns a presigned URL for direct client-to-S3 upload
+
+For `POST /api/media/upload`:
+- Accepted MIME types: `image/jpeg`, `image/png`, `image/webp`
+- Max file size: 10MB
+- Validation: reject wrong MIME type (415), reject oversized file (413)
+- Response: `{ url: string, key: string, width: number, height: number, size: number }`
+- File stored in MinIO under `uploads/{userId}/{uuid}.{ext}`
+
+For `GET /api/media/presigned-url`:
+- Query params: `filename` (original name), `contentType` (MIME type)
+- Response: `{ uploadUrl: string, key: string, expiresIn: number }`
+- Client uploads directly to MinIO using the presigned URL
+- After upload, client calls `POST /api/media/confirm-upload` with `{ key }` to get back the public URL
+
+Define the storage key naming convention, URL format for accessing stored files, and how MinIO public access is configured in dev.
+
+### Acceptance criteria
+
+- `specs/api/media.spec.md` covers all 3 endpoints with request/response shapes and error cases
+- Storage key naming convention is clearly defined
+- Presigned URL flow is diagrammed (even as ASCII or text steps)
+- Spec is implementable without ambiguity
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T06] Implement Media Upload
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T05
+**Agent role:** Developer
+**Spec file:** `specs/api/media.spec.md`
+
+### What to do
+
+Implement the storage service abstraction and media upload endpoints.
+
+**`src/backend/src/services/storage.service.ts`:**
+- Wraps MinIO client (`minio` npm package)
+- Methods: `uploadFile(key, buffer, contentType)`, `getSignedUrl(key, expirySeconds)`, `deleteFile(key)`, `getPublicUrl(key)`
+- Initialize MinIO client from env vars: `MINIO_ENDPOINT`, `MINIO_PORT`, `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY`, `MINIO_BUCKET`
+- On startup, create bucket if it doesn't exist and set public read policy
+
+**`src/backend/src/routes/media.ts`:**
+- `POST /api/media/upload` — use `multer` with memory storage; validate file type and size; call `storageService.uploadFile`; return URL + metadata
+- `GET /api/media/presigned-url` — validate query params; call `storageService.getSignedUrl`; return presigned URL
+- `POST /api/media/confirm-upload` — accept `{ key }`; return `{ url: storageService.getPublicUrl(key) }`
+
+Add `multer` and `minio` to `src/backend/package.json` dependencies.
+
+Mount router at `/api/media` in `server.ts`.
+
+### Acceptance criteria
+
+- `POST /api/media/upload` with a valid JPEG returns 200 with `url`, `key`, `width`, `height`, `size`
+- Uploading a PDF returns 415
+- Uploading a 15MB image returns 413
+- Presigned URL endpoint returns a URL that works for direct PUT to MinIO
+- Uploaded files appear in MinIO console at `http://localhost:9001`
+- `storageService` is the only place in the codebase that imports the `minio` package
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T07] Spec — Project CRUD + Slot Fill API
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P0-T08
+**Agent role:** Planner
+**Spec file:** `specs/api/projects.spec.md` (create this file)
+
+### What to do
+
+Write the project API spec at `specs/api/projects.spec.md`.
+
+Cover these endpoints:
+- `POST /api/projects` — create a new project from a template
+- `GET /api/projects/:id` — get project with slot fills and resolved asset URLs
+- `PATCH /api/projects/:id` — update slot fills, music, name, settings
+- `GET /api/projects` — list user's projects (simple, paginated)
+
+For `POST /api/projects`:
+- Body: `{ templateId: string, name?: string }`
+- Creates project with `status: "draft"` and empty `slotFills: []`
+- Returns full project including the template's `schema` (so client knows what slots to fill)
+
+For `PATCH /api/projects/:id`:
+- Body can include: `slotFills`, `musicUrl`, `name`, `settings`
+- `slotFills` is an array of `{ slotId, type, value }` — replaces the entire fills array
+- Validate that each `slotId` exists in the template's schema
+- Validate that each fill's `type` matches the slot's defined type
+- If all required slots are filled, update `status` to `"ready"`
+
+For `GET /api/projects/:id`:
+- Return project with template schema embedded (not just templateId)
+- Include a computed `filledSlots` count and `requiredSlots` count
+
+Define the full slot fill validation rules: required vs optional slots, type matching, what "filled" means for each slot type.
+
+### Acceptance criteria
+
+- `specs/api/projects.spec.md` covers all 4 endpoints
+- Slot fill validation rules are precisely defined
+- `status` transition logic (draft → ready) is documented
+- Response shapes include all fields needed by the frontend editor
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T08] Implement Project CRUD + Slot Fill API
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T07, P1-T06
+**Agent role:** Developer
+**Spec file:** `specs/api/projects.spec.md`
+
+### What to do
+
+Implement project routes and service.
+
+**`src/backend/src/services/project.service.ts`:**
+- `createProject(templateId, name?, userId?)` — load template, create project record, return with template
+- `getProject(id)` — Prisma findUnique with template included; compute `filledSlots`/`requiredSlots`
+- `updateProject(id, data)` — update fields; run slot fill validation; update status to "ready" if all required slots filled
+- `listProjects(userId, pagination)` — paginated list
+
+**`src/backend/src/routes/projects.ts`:**
+- Implement all 4 endpoints per spec
+- Zod validation for all inputs
+- 404 if project not found
+- 400 with descriptive error if slot fill references unknown slotId
+- 400 with descriptive error if slot type mismatch
+
+Mount at `/api/projects` in `server.ts`.
+
+### Acceptance criteria
+
+- `POST /api/projects` creates project and returns template schema in response
+- `PATCH /api/projects/:id` with all required slots filled transitions `status` to `"ready"`
+- `PATCH` with wrong `slotId` returns 400 `"Slot 'unknown-id' does not exist in template"`
+- `PATCH` with wrong slot type returns 400 `"Slot 'cover-image' expects type 'image', got 'text'"`
+- `GET /api/projects/:id` includes `filledSlots` and `requiredSlots` counts
+- Full lifecycle works: create → fill slots → get → status is "ready"
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T09] Remotion Component Library (V1 — 6 Components)
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P0-T06
+**Agent role:** Developer
+**Spec file:** `specs/schemas/component-registry.md` (create if missing)
+
+### What to do
+
+**Step 1 — Create `specs/schemas/component-registry.md`** documenting each component's props interface and usage.
+
+**Step 2 — Implement 6 components** in `src/video/src/components/`, replacing the stubs from P0-T06:
+
+**`StaticImage.tsx`** — Full-bleed image with configurable `objectFit` (`cover` | `contain` | `fill`). Props: `{ src: string, objectFit?: string, opacity?: number }`
+
+**`KenBurnsImage.tsx`** — Slow zoom in or out on an image over the scene duration. Props: `{ src: string, direction?: 'in' | 'out', scale?: number }` (default direction: `'in'`, scale range 1.0–1.15)
+
+**`AnimatedText.tsx`** — Text that fades in or slides in from bottom. Props: `{ text: string, fontSize?: number, color?: string, fontWeight?: string, textAlign?: string, animationType?: 'fade' | 'slide-up', delay?: number }` (delay in frames)
+
+**`FadeTransition.tsx`** — Cross-fade between two children over a configurable number of frames. This is a wrapper composition, not a standalone component. Props: `{ durationInFrames: number }` — wraps content, fades out over the last N frames.
+
+**`GrainOverlay.tsx`** — Animated film grain effect as a full-bleed overlay. Props: `{ opacity?: number, size?: number }`. Use CSS `background-image` with a procedural noise pattern or a static grain SVG data URL.
+
+**`TypewriterText.tsx`** — Text revealed character by character. Props: `{ text: string, fontSize?: number, color?: string, delay?: number }`
+
+All components must:
+- Use `useCurrentFrame()` and `useVideoConfig()` from `remotion`
+- Handle edge cases: empty `src` shows grey placeholder, empty `text` renders nothing
+- Be fully typed with a named `Props` interface exported alongside the component
+- Export from `src/video/src/components/index.ts` with string IDs in `COMPONENT_REGISTRY`
+
+### Acceptance criteria
+
+- All 6 components visible and previewing correctly in Remotion Studio
+- `COMPONENT_REGISTRY` in `index.ts` includes all 6 with correct string keys
+- Each component handles its edge cases without throwing
+- `specs/schemas/component-registry.md` documents all props
+- TypeScript strict mode passes with no errors
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T10] Template Renderer (JSON → Remotion Composition)
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T09, P1-T04
+**Agent role:** Developer
+**Spec file:** `specs/schemas/component-registry.md`
+
+### What to do
+
+Build `src/video/src/TemplateRenderer.tsx` — the core rendering engine that takes a `TemplateSchema` JSON + slot fills and renders the complete video.
+
+**Props interface:**
+```ts
+interface TemplateRendererProps {
+  template: TemplateSchema;
+  slotFills: SlotFill[];
+  musicUrl?: string;
+}
+```
+
+**What it must do:**
+1. Iterate `template.scenes` in order
+2. For each scene, calculate its start frame from the sum of previous scene durations
+3. For each `SceneComponent` in a scene, look up the component in `COMPONENT_REGISTRY` by `componentId`
+4. Resolve slot fill values: for each key in `slotBindings`, find the matching `SlotFill` by `slotId` and pass its `value` as the prop
+5. Merge `slotBindings`-resolved props with static `props` (static props override nothing — slot bindings take precedence)
+6. Use Remotion's `<Sequence>` to position each scene at the correct frame offset
+7. Render components with `zIndex` ordering within each scene
+8. If `musicUrl` provided, use `<Audio>` from `remotion` for background music
+
+**Register in `src/video/src/Root.tsx`** as a composition named `TemplateRenderer` with a test template JSON and dummy slot fills as `defaultProps`.
+
+### Acceptance criteria
+
+- Feed the renderer a Photo Dump template JSON + dummy image URLs → correct video in Remotion Studio
+- Scenes play in order with correct durations
+- Slot values are correctly passed to components (image URL → `StaticImage.src`, text → `AnimatedText.text`)
+- Works correctly for all 5-8 seed templates from P1-T04
+- Missing/unfilled slots show grey placeholder (don't crash)
+- `musicUrl` plays as background audio when provided
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T11] Test — Remotion Components + Renderer
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T09, P1-T10
+**Agent role:** Tester
+**Spec file:** `specs/schemas/component-registry.md`
+
+### What to do
+
+Write unit tests in `tests/unit/video/` for the Remotion components and the TemplateRenderer.
+
+**For each of the 6 components** (use `@remotion/testing` or simple React render tests with `@testing-library/react`):
+- Renders without throwing with valid props
+- Renders without throwing with all optional props omitted
+- Edge case: empty/null `src` or `text` — renders placeholder, does not crash
+
+**For `TemplateRenderer`:**
+- Renders without throwing given a valid template JSON + slot fills
+- Renders without throwing when `slotFills` is empty (all slots show placeholders)
+- Correct number of `<Sequence>` elements rendered (one per scene)
+- Unknown `componentId` in template falls back gracefully (logs warning, renders placeholder)
+- Test with at least 2 different seed templates
+
+### Acceptance criteria
+
+- All tests pass with `npm test` in the video package (or wherever tests are configured)
+- Each component has min 3 tests: valid props, minimal props, edge case
+- TemplateRenderer has min 5 tests
+- No tests import from `remotion` internals — test the component behavior, not implementation
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T12] Spec — Render Pipeline API
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T10
+**Agent role:** Planner
+**Spec file:** `specs/features/video-rendering.spec.md` (create this file)
+
+### What to do
+
+Write the video render pipeline spec at `specs/features/video-rendering.spec.md`.
+
+Cover:
+
+**Endpoints:**
+- `POST /api/projects/:id/render` — trigger a render job for a project
+- `GET /api/renders/:id/status` — poll render status
+- `GET /api/renders/:id/download` — get presigned download URL for completed render
+
+**Job flow:**
+1. `POST /render` validates project status is `"ready"` (all required slots filled)
+2. Creates a `Render` record with status `PENDING`
+3. Enqueues a BullMQ job with payload `{ renderId, projectId }`
+4. Returns 202 with `{ renderId }`
+5. BullMQ worker picks up job:
+   - Updates render status to `PROCESSING`
+   - Fetches project + template from DB
+   - Calls Remotion CLI: `npx remotion render TemplateRenderer output.mp4 --props='...'`
+   - On success: uploads MP4 to MinIO, updates render `outputUrl` and status to `DONE`
+   - On failure: updates render status to `FAILED`, stores `errorMessage`
+
+**Status polling:** `GET /api/renders/:id/status` returns `{ status, outputUrl, errorMessage, startedAt, completedAt }`
+
+**Error cases:** project not ready (409), render already in progress (409), project not found (404), render not found (404)
+
+**Define the Remotion CLI invocation** — exactly what command is run, how `--props` is serialized, how output file is named, where it's stored temporarily before S3 upload.
+
+### Acceptance criteria
+
+- Spec covers all 3 endpoints with full request/response shapes
+- Job flow is precisely documented (developer can implement without guessing)
+- All error cases are enumerated
+- Remotion CLI invocation format is specified exactly
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T13] Implement Render Pipeline (Local Remotion CLI)
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T12, P1-T10, P1-T08
+**Agent role:** Developer
+**Spec file:** `specs/features/video-rendering.spec.md`
+
+### What to do
+
+Implement the full video render pipeline using local Remotion CLI rendering.
+
+**`src/backend/src/services/render.service.ts`:**
+- `triggerRender(projectId)` — validate project, create Render record, enqueue BullMQ job, return renderId
+- `getRenderStatus(renderId)` — Prisma findUnique with status
+
+**`src/backend/src/jobs/render.worker.ts`** — BullMQ worker:
+- Connect to Redis (`REDIS_URL` env var)
+- Process queue `"render-jobs"`
+- Job handler:
+  1. Fetch project + template + slot fills from DB
+  2. Build Remotion `--props` JSON: `{ template: ..., slotFills: ..., musicUrl: ... }`
+  3. Run Remotion CLI as a child process: `npx remotion render src/video/src/Root.tsx TemplateRenderer /tmp/render-{renderId}.mp4 --props='...'`
+  4. Upload resulting MP4 to MinIO at `renders/{renderId}.mp4`
+  5. Update Render record: `status: DONE`, `outputUrl`, `completedAt`
+  6. On any failure: update `status: FAILED`, `errorMessage`
+
+**`src/backend/src/routes/renders.ts`:**
+- `POST /api/projects/:id/render` — calls `render.service.triggerRender`, returns 202
+- `GET /api/renders/:id/status` — returns render record
+- `GET /api/renders/:id/download` — returns presigned MinIO URL for the output MP4 (404 if not DONE)
+
+Start the worker in `server.ts` (import and initialize on startup).
+
+### Acceptance criteria
+
+- End-to-end: create project → fill slots → `POST /render` → poll status → status becomes `DONE` → download URL works → downloaded MP4 plays correctly in VLC/browser
+- Rendered video is 1080×1920 H.264 at 30fps
+- Render failure (bad props, missing file) sets `status: FAILED` with error message — does not crash the worker
+- Worker survives the render process without memory leak (check for large props JSON)
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T14] Implement Render Download Endpoint
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T13
+**Agent role:** Developer
+**Spec file:** `specs/features/video-rendering.spec.md`
+
+### What to do
+
+Implement `GET /api/renders/:id/download` in `src/backend/src/routes/renders.ts` (the route file already exists from P1-T13 — add this endpoint if it wasn't included).
+
+The endpoint should:
+- Look up the Render record by ID
+- Return 404 if not found
+- Return 409 if render status is not `DONE` (with message: `"Render is not complete yet. Current status: {status}"`)
+- Call `storageService.getSignedUrl(render.outputUrl, 3600)` for a 1-hour presigned URL
+- Return `{ downloadUrl: string, expiresIn: 3600 }`
+
+This is a small addition to P1-T13 — confirm it wasn't already implemented before doing any work.
+
+### Acceptance criteria
+
+- `GET /api/renders/{id}/download` for a DONE render returns a presigned URL
+- The presigned URL downloads the MP4 file when opened in a browser
+- Returns 404 for unknown render ID
+- Returns 409 for renders in PENDING, PROCESSING, or FAILED status with current status in error message
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T15] Frontend — Template Gallery Page
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T02, P0-T05
+**Agent role:** Developer
+**Spec file:** N/A
+
+### What to do
+
+Build the template gallery page at route `/templates` in `src/frontend/src/pages/Templates.tsx` (replace the stub).
+
+**Components to build:**
+
+`src/frontend/src/components/templates/TemplateCard.tsx`:
+- Props: `{ template: Template }` (use `Template` type from `src/shared`)
+- Shows: thumbnail image (with fallback grey box if null), template name, category badge (colored by category), duration badge (e.g., "15s"), short description (truncated to 2 lines)
+- On click: navigate to `/editor/:templateId`
+- Hover state: slight scale + shadow
+
+`src/frontend/src/pages/Templates.tsx`:
+- Fetches `GET /api/templates` on mount using the `api` utility from P0-T05
+- Renders a responsive grid: 2 columns on mobile, 3 on tablet, 4 on desktop
+- Category filter tabs above the grid (fetch unique categories from the response and render as clickable tabs, "All" tab always first)
+- Loading skeleton (grey boxes) while fetching
+- Empty state if no templates match
+- Error state if API fails
+
+Update the Home page "Browse Templates" button to actually work (already links to `/templates`).
+
+### Acceptance criteria
+
+- Templates load from API and appear in grid
+- Category filter tabs work (clicking "lifestyle" shows only lifestyle templates)
+- "All" tab shows all templates
+- Clicking a template card navigates to `/editor/{id}`
+- Responsive: looks good at 375px, 768px, 1280px viewport widths
+- Loading state shown while fetching
+- No console errors
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T16] Frontend — Editor Page (Slot Filler)
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T08, P1-T06, P1-T15
+**Agent role:** Developer
+**Spec file:** N/A
+
+### What to do
+
+Build the project editor at route `/editor/:templateId` in `src/frontend/src/pages/Editor.tsx`.
+
+**Page structure (three-panel layout):**
+- **Left panel (250px):** Scene list — one row per scene showing scene number and a preview of which slots are filled (filled = colored dot, empty = grey dot). Clicking a scene makes it "active".
+- **Center panel (flex):** Placeholder preview area — for now, show the filled image for the active scene's first image slot, or a grey box. (Real Remotion preview comes in P1-T17.)
+- **Right panel (320px):** Slot editor — shows the slots for the active scene. For each slot:
+  - **Image slot:** Dropzone (drag & drop or click to upload). On file drop/select: call `POST /api/media/upload`, show uploaded thumbnail when done.
+  - **Text slot:** `<textarea>` with character limit based on `slot.constraints.maxLength`. Auto-saves on blur.
+
+**Project lifecycle:**
+- On mount: if no `projectId` in URL params, call `POST /api/projects` with the `templateId` to create a new project; then redirect to `/editor/:templateId?project={projectId}` (or use local state)
+- On each slot fill change: call `PATCH /api/projects/:id` with updated `slotFills` (debounced 500ms)
+
+**Header:**
+- Template name + "Generate Video" button (disabled until project status is `"ready"`)
+- "Generate Video" navigates to the render flow (P1-T18 will add the modal/flow)
+
+### Acceptance criteria
+
+- Editor loads for any template from the gallery
+- Can upload an image to an image slot — thumbnail appears
+- Can type text in a text slot
+- Slot fills persist: refresh the page → fills are still there (fetched from API)
+- "Generate Video" button is disabled when not all required slots are filled
+- Left panel scene list updates dots when slots are filled
+- No console errors
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T17] Frontend — Remotion Preview Player
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T16, P1-T10
+**Agent role:** Developer
+**Spec file:** N/A
+
+### What to do
+
+Replace the placeholder preview in the Editor's center panel with a live Remotion preview using `@remotion/player`.
+
+Install `@remotion/player` in `src/frontend/package.json`.
+
+**`src/frontend/src/components/editor/VideoPreview.tsx`:**
+- Props: `{ template: TemplateSchema, slotFills: SlotFill[], musicUrl?: string }`
+- Renders `<Player>` from `@remotion/player` with:
+  - `component={TemplateRenderer}` (imported from `src/video/src/TemplateRenderer.tsx` — add path alias or relative import)
+  - `inputProps={{ template, slotFills, musicUrl }}`
+  - `durationInFrames` computed from `template.scenes` sum * 30
+  - `fps={30}`
+  - `compositionWidth={1080}` `compositionHeight={1920}`
+  - `style={{ width: '100%', height: 'auto' }}`
+  - `controls={true}` — show play/pause/scrub bar
+
+The preview should **update in real-time** as slot fills change in the editor — because `inputProps` is reactive, this happens automatically when the parent passes new props.
+
+Add TypeScript path alias in `src/frontend/vite.config.ts` so `@video/...` resolves to `src/video/src/...` (or use a relative path — whatever compiles cleanly).
+
+### Acceptance criteria
+
+- Live video preview appears in the editor center panel
+- Preview shows filled images and text correctly
+- Preview updates within 1 second of changing a slot fill
+- Play/pause controls work
+- Scrub bar works
+- Preview renders at correct 9:16 aspect ratio
+- No TypeScript errors
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T18] Frontend — Export / Download Flow
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T13, P1-T17
+**Agent role:** Developer
+**Spec file:** `specs/features/video-rendering.spec.md`
+
+### What to do
+
+Wire up the "Generate Video" button to the render pipeline.
+
+**`src/frontend/src/components/editor/RenderModal.tsx`** — A modal/overlay that opens when user clicks "Generate Video":
+
+States to handle:
+1. **Idle** — "Your video is ready to generate. This takes about 30-60 seconds." + "Start Rendering" button
+2. **Rendering** — spinner + "Rendering your video… (polling every 3s)" + render status text
+3. **Done** — "Your video is ready!" + "Download MP4" button (calls download URL) + "Render Again" button
+4. **Failed** — "Rendering failed." + error message + "Try Again" button
+
+**Logic:**
+- "Start Rendering": call `POST /api/projects/:id/render` → get `renderId`
+- Poll `GET /api/renders/:renderId/status` every 3 seconds
+- On status `DONE`: show Done state, fetch `GET /api/renders/:renderId/download` for the URL
+- On status `FAILED`: show Failed state with `errorMessage`
+- Stop polling when modal is closed (cleanup interval/timeout)
+
+In `Editor.tsx`, "Generate Video" button opens this modal.
+
+### Acceptance criteria
+
+- Full happy path: fill all slots → click Generate → modal opens → render starts → spinner shows → after ~30-60s status changes to Done → "Download MP4" button appears → clicking it downloads a valid MP4
+- Failed renders show error message
+- Closing the modal stops polling (no background requests after close)
+- "Render Again" re-triggers the flow from the start
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1-T19] Test — End-to-End MVP Flow
+
+**Status:** PENDING
+**Phase:** 1
+**Depends on:** P1-T18
+**Agent role:** Tester
+**Spec file:** N/A
+
+### What to do
+
+Write a Playwright end-to-end test that covers the complete MVP user journey. File: `tests/e2e/mvp-flow.spec.ts`.
+
+**Test scenario:**
+1. Navigate to `http://localhost:5173`
+2. Click "Browse Templates" → lands on `/templates`
+3. Verify at least one template card is visible
+4. Click the first template card → lands on `/editor/{templateId}`
+5. Wait for the editor to load (project created, slots visible)
+6. Fill an image slot: upload a test image file (`tests/fixtures/test-image.jpg`)
+7. Fill a text slot: type a test string
+8. Verify the Remotion preview updates (check that a video element appears)
+9. Verify the "Generate Video" button becomes enabled
+10. Click "Generate Video" → modal opens
+11. Click "Start Rendering" → spinner appears
+12. Poll (check every 5s, timeout 120s) until modal shows "Download MP4" button
+13. Click "Download MP4" → verify the response is a valid video file (check Content-Type or file extension)
+
+**Setup:**
+- Add a test fixture image at `tests/fixtures/test-image.jpg` (a small 100×100 JPEG)
+- The test assumes `docker compose up -d` is running and both frontend and backend are running
+
+### Acceptance criteria
+
+- Test passes end-to-end against a running local environment
+- Test uses `page.waitForSelector` / `page.waitForResponse` with reasonable timeouts (not `waitForTimeout`)
+- Test cleans up created project after completion (optional: use `afterAll` to delete via API)
+- Test file has descriptive `test.step()` annotations
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## Phase 1.5+ Tasks
+
+Phase 1.5 and later tasks will be added by the supervisor as Phase 1 nears completion.
+
+**Reserved IDs:**
+- `P1.5-T01` through `P1.5-T05` — Video intake pipeline (URL fetching, collections)
+- `P2-T01` through `P2-T11` — AI suggestions, music library
+- `P3-T01` through `P3-T07` — Publishing (Instagram, TikTok, scheduling)
+- `P4-T01` through `P4-T07` — Template extraction from video collections
