@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Navbar } from '@/components/layout/Navbar';
 import { Home } from '@/pages/Home';
 import { Templates } from '@/pages/Templates';
+import { Editor } from '@/pages/Editor';
 import { NotFound } from '@/pages/NotFound';
 import '@/index.css';
 
@@ -14,6 +15,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/templates" element={<Templates />} />
+            <Route path="/editor/:templateId" element={<Editor />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </main>
