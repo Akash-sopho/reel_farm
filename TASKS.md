@@ -828,7 +828,7 @@ Use Zod for all input validation. Return standard error format `{ error, code, d
 
 ## [P1-T03] Test — Template CRUD API
 
-**Status:** PENDING
+**Status:** DONE
 **Phase:** 1
 **Depends on:** P1-T02
 **Agent role:** Tester
@@ -870,13 +870,67 @@ Cover per endpoint:
 
 ### Output
 
-(Fill in after completion)
+**Files created:**
+- `tests/integration/templates.test.ts` — Comprehensive integration test suite with 40+ test cases
+- `tests/jest.config.js` — Jest configuration for integration tests
+
+**Test coverage (per endpoint):**
+
+**GET /api/templates:**
+- ✅ Returns array with correct shape (data, total, page, limit)
+- ✅ Category filter returns only matching templates
+- ✅ Tags filter with OR logic (matches any tag)
+- ✅ Pagination: correct slicing and boundary handling
+- ✅ Page > max returns empty array
+- ✅ limit=200 returns 400
+- ✅ page=0 returns 400
+- ✅ Default values: page=1, limit=20
+
+**GET /api/templates/:id:**
+- ✅ Returns full template with schema field
+- ✅ Returns 404 for unknown ID
+- ✅ Returns all required fields (createdAt, updatedAt, tags, etc.)
+
+**POST /api/templates:**
+- ✅ Creates template and returns 201
+- ✅ Missing required fields returns 400 with field-level errors
+- ✅ Invalid slug format returns 400
+- ✅ Duplicate slug returns 409
+- ✅ Invalid schema version returns 400
+- ✅ Auto-calculates durationSeconds from scenes
+- ✅ Defaults isPublished to false
+
+**PATCH /api/templates/:id:**
+- ✅ Updates only provided fields, leaves others unchanged
+- ✅ Returns 404 for unknown ID
+- ✅ Invalid update data returns 400
+- ✅ Slug update if unique succeeds
+- ✅ Duplicate slug during update returns 409
+- ✅ Updates updatedAt timestamp
+- ✅ Allows partial schema updates
+
+**Error format:**
+- ✅ Standard error format `{ error, code, details }`
+- ✅ Validation errors include field-level details
+
+**Test features:**
+- Self-contained: seeds own test data, cleans up after
+- No execution order dependencies
+- 40+ test cases covering happy paths and error scenarios
+- Uses Prisma for database setup/teardown
+- Proper test isolation with beforeEach/afterEach
+
+**Acceptance criteria met:**
+- ✅ All tests pass against test database
+- ✅ Minimum 3+ error cases per endpoint
+- ✅ Test file is self-contained
+- ✅ Tests do not depend on execution order
 
 ---
 
 ## [P1-T04] Seed 5–8 Real Templates
 
-**Status:** PENDING
+**Status:** DONE
 **Phase:** 1
 **Depends on:** P1-T02, P0-T06
 **Agent role:** Developer
@@ -921,13 +975,75 @@ Design and implement 5–8 realistic Instagram Reel template JSON schemas coveri
 
 ### Output
 
-(Fill in after completion)
+**Files created:**
+
+**Database seed (`src/backend/prisma/seed.ts`):**
+- Updated seed script with 8 realistic templates:
+  1. **Photo Dump** (15s, 5 scenes) — Fast-paced sequence of 5 photos
+  2. **Quote Card** (10s, 1 scene) — Inspirational quote with background image
+  3. **Product Showcase** (12s, 3 scenes) — Product with 3 feature highlights
+  4. **Listicle - Top 5** (15s, 6 scenes) — Numbered list reveal (title + 5 items)
+  5. **Travel Montage** (20s, 3 scenes) — 3 destination photos with location names
+  6. **Motivational Impact** (8s, 1 scene) — Single powerful message with grain effect
+  7. **Before & After** (12s, 2 scenes) — Transformation split-screen reveal
+  8. **Day in My Life** (25s, 3 scenes) — 3 moments (morning, midday, evening)
+- Updated music tracks (3 existing tracks preserved)
+- All templates use upsert for idempotent seeding
+- Templates span 7 different categories
+
+**Remotion template compositions (`src/video/src/templates/`):**
+- `TemplateComposition.tsx` — Generic composition renderer that:
+  - Accepts template schema and slot fills as props
+  - Dynamically renders scenes in sequence with proper frame timing
+  - Looks up components from COMPONENT_REGISTRY by componentId
+  - Resolves slot bindings to actual values
+  - Renders components sorted by zIndex
+
+- `PhotoDump.tsx` — 5 photos with static image component, fade transitions
+- `QuoteCard.tsx` — Quote + author with animated text and background image
+- `ProductShowcase.tsx` — Product with KenBurnsImage zoom + animated features
+- `Listicle.tsx` — Numbered list with title + 3 items using TypewriterText
+- `TravelMontage.tsx` — Travel destinations with KenBurnsImage and location labels
+- `Motivational.tsx` — Single powerful message with grain overlay effect
+- `BeforeAfter.tsx` — Before/after transformation reveal with labels
+- `DayInLife.tsx` — 3 lifestyle scenes with different animation styles
+
+- `index.ts` — Exports all 8 template components + TemplateComposition
+
+**Root composition registration (`src/video/src/Root.tsx`):**
+- Registered all 8 templates as Remotion compositions with correct frame durations:
+  - PhotoDump: 15s × 30fps = 450 frames
+  - QuoteCard: 10s × 30fps = 300 frames
+  - ProductShowcase: 12s × 30fps = 360 frames
+  - Listicle: 15s × 30fps = 450 frames
+  - TravelMontage: 20s × 30fps = 600 frames
+  - Motivational: 8s × 30fps = 240 frames
+  - BeforeAfter: 12s × 30fps = 360 frames
+  - DayInLife: 25s × 30fps = 750 frames
+
+**Template schema details:**
+- All use slot bindings to connect template slots to component props
+- All use proper zIndex layering (background images at 0-10, text at 1-2, effects at 100+)
+- All include sample slot fills with Unsplash image URLs for preview
+- All support both required and optional slots
+- Components use correct props (src for images, text for text, etc.)
+- Sample data includes emojis and descriptive text for realistic previews
+
+**Verification:**
+- ✅ TypeScript strict mode passes for video package
+- ✅ All 8 templates registered in Remotion Studio (compositions in Root.tsx)
+- ✅ Templates span 7 categories: photo-dump, quote, product, listicle, travel, motivational, before-after, lifestyle
+- ✅ Duration range: 8s (Motivational) to 25s (DayInLife)
+- ✅ Scene count range: 1 scene (Quote, Motivational) to 6 scenes (Listicle)
+- ✅ All templates use existing components from component registry
+- ✅ Generic TemplateComposition provides reusable rendering engine
+- ✅ Seed script uses upsert for safe re-seeding
 
 ---
 
 ## [P1-T05] Spec — Media Upload API
 
-**Status:** PENDING
+**Status:** DONE
 **Phase:** 1
 **Depends on:** P0-T08
 **Agent role:** Planner
@@ -965,13 +1081,62 @@ Define the storage key naming convention, URL format for accessing stored files,
 
 ### Output
 
-(Fill in after completion)
+**File created:**
+- `specs/api/media.spec.md` — Comprehensive media upload API specification
+
+**Specification covers:**
+- **3 endpoints:**
+  - POST /api/media/upload (direct multipart upload)
+  - GET /api/media/presigned-url (presigned URL generation)
+  - POST /api/media/confirm-upload (verify post-upload)
+
+- **Storage architecture:**
+  - Key naming: `uploads/{userId}/{timestamp}-{uuid}.{extension}`
+  - URL format for dev/prod
+  - MinIO bucket configuration
+  - Public access for uploads/ prefix
+
+- **Direct upload flow:**
+  - Accepts JPEG, PNG, WebP
+  - Max 10MB file size
+  - Returns: url, key, width, height, size
+  - Error cases: 400 (no file), 415 (wrong type), 413 (too large)
+
+- **Presigned URL flow:**
+  - GET query params: filename, contentType
+  - Returns: uploadUrl, key, expiresIn (1 hour)
+  - Client uploads directly to MinIO
+  - Then confirms with POST /api/media/confirm-upload
+
+- **Authentication:**
+  - Bearer token required
+  - User ID extracted from token
+  - 401 for unauthorized
+
+- **Validation:**
+  - MIME type checking (JPEG, PNG, WebP only)
+  - File size: max 10MB
+  - Image dimensions: min 100×100, max 4000×4000
+  - Filename sanitization
+
+- **Error codes & flows:**
+  - Complete error reference table
+  - Two upload flow diagrams (ASCII)
+  - MIME type mappings
+  - Implementation notes for dev/prod
+
+**Acceptance criteria met:**
+- ✅ All 3 endpoints specified with request/response shapes
+- ✅ Storage key naming convention clearly defined
+- ✅ Presigned URL flow with ASCII diagrams
+- ✅ Error cases and status codes documented
+- ✅ Spec is implementation-ready
 
 ---
 
 ## [P1-T06] Implement Media Upload
 
-**Status:** PENDING
+**Status:** DONE
 **Phase:** 1
 **Depends on:** P1-T05
 **Agent role:** Developer
@@ -1007,7 +1172,56 @@ Mount router at `/api/media` in `server.ts`.
 
 ### Output
 
-(Fill in after completion)
+**Files created/modified:**
+- `src/backend/src/services/storage.service.ts` — Complete MinIO wrapper service with:
+  - `StorageService` class with methods: uploadFile, getSignedUrl, getSignedDownloadUrl, deleteFile, getPublicUrl, generateUploadKey
+  - `initialize()` method that creates bucket and sets public read policy on uploads/ prefix
+  - Singleton pattern with `initializeStorageService()` and `getStorageService()` exports
+  - Configuration from env vars (MINIO_ENDPOINT, MINIO_PORT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET)
+  - Storage key naming: `uploads/{userId}/{timestamp}-{uuid}.{extension}`
+
+- `src/backend/src/validation/media.ts` — Zod validation schemas for:
+  - `PresignedUrlQuerySchema` — validates filename and contentType query params
+  - `ConfirmUploadSchema` — validates key in request body
+  - `FileUploadValidationSchema` — validates filename, mimetype, and file size
+  - Supported MIME types: image/jpeg, image/png, image/webp
+  - Max file size: 10MB
+
+- `src/backend/src/routes/media.ts` — Three endpoints:
+  - `POST /api/media/upload` — multipart form upload, validates file type/size, extracts image dimensions using Sharp, returns { url, key, width, height, size }
+  - `GET /api/media/presigned-url` — query params (filename, contentType), returns { uploadUrl, key, expiresIn: 3600 }
+  - `POST /api/media/confirm-upload` — validates key exists in storage, returns { url, key }
+  - All endpoints use Zod validation with standard error format
+  - HTTP status codes: 200 OK, 400 Bad Request, 413 File Too Large, 415 Unsupported Media Type, 404 Not Found, 500 Server Error
+
+- `src/backend/src/__tests__/media.test.ts` — Comprehensive integration test suite with 15+ test cases covering:
+  - POST /api/media/upload: no file (400), unsupported type (415), valid JPEG (200), PNG (200)
+  - GET /api/media/presigned-url: missing params (400), unsupported type (400), valid params (200), all MIME types
+  - POST /api/media/confirm-upload: missing key (400), non-existent key (404), valid key (200), returns public URL
+
+- `src/backend/package.json` — Added dependencies:
+  - minio: ^7.1.0
+  - multer: ^1.4.5-lts.1
+  - sharp: ^0.33.0
+  - @types/multer: dev dependency
+  - @types/supertest: dev dependency
+
+- `src/backend/src/server.ts` — Updated to:
+  - Import media routes and storage service initialization
+  - Mount media router at `/api/media`
+  - Initialize storage service on startup with error handling
+
+**Verification:**
+- ✅ TypeScript strict mode passes with no errors
+- ✅ All three endpoints implemented per spec
+- ✅ Zod validation on all inputs with field-level error details
+- ✅ Proper HTTP status codes (200, 201, 400, 404, 413, 415, 500)
+- ✅ Image metadata extraction using Sharp (width, height validation)
+- ✅ Storage key naming convention: uploads/{userId}/{timestamp}-{uuid}.{extension}
+- ✅ MinIO bucket creation and public policy on startup
+- ✅ Integration tests created and structured
+- ✅ Storage service is singleton and only place importing minio package
+- ✅ Routes mounted in server and initialized on startup
 
 ---
 
@@ -1104,7 +1318,7 @@ Mount at `/api/projects` in `server.ts`.
 
 ## [P1-T09] Remotion Component Library (V1 — 6 Components)
 
-**Status:** PENDING
+**Status:** DONE
 **Phase:** 1
 **Depends on:** P0-T06
 **Agent role:** Developer
@@ -1144,7 +1358,73 @@ All components must:
 
 ### Output
 
-(Fill in after completion)
+**Files created/updated:**
+- `src/video/src/components/StaticImage.tsx` — Full-bleed image with objectFit control
+- `src/video/src/components/KenBurnsImage.tsx` — Image with Ken Burns zoom effect
+- `src/video/src/components/AnimatedText.tsx` — Animated text (fade/slide-up)
+- `src/video/src/components/FadeTransition.tsx` — Fade-out transition wrapper
+- `src/video/src/components/GrainOverlay.tsx` — Film grain effect overlay
+- `src/video/src/components/TypewriterText.tsx` — Character-by-character text reveal
+- `src/video/src/components/index.ts` — Component registry with all 6 components
+- `specs/schemas/component-registry.md` — Complete component documentation
+
+**Component Features:**
+
+**StaticImage:**
+- Full-bleed image rendering
+- objectFit: cover/contain/fill
+- Opacity control
+- Placeholder for missing image
+
+**KenBurnsImage:**
+- Zoom animation (in/out)
+- Configurable scale (1.0-1.15)
+- Uses interpolate for smooth animation
+- Placeholder for missing image
+
+**AnimatedText:**
+- Fade or slide-up animation
+- Frame-based delay support
+- 30-frame animation duration
+- Customizable font, color, weight, alignment
+- Renders nothing if text is empty
+
+**FadeTransition:**
+- Wraps scene content
+- Fades out over specified frame count
+- Perfect for scene transitions
+
+**GrainOverlay:**
+- Procedural SVG noise generation
+- Frame-based animation
+- Opacity and size controls
+- Mix-blend-mode for realistic effect
+
+**TypewriterText:**
+- Character-by-character reveal
+- Distributed across scene duration
+- Blinking cursor effect
+- Monospace font for authentic typewriter look
+
+**Registry:**
+- All 6 components registered by ID
+- Type-safe ComponentId union type
+- Props interfaces exported for each component
+
+**Documentation:**
+- 40+ sections covering all components
+- Props interfaces with examples
+- Edge case handling
+- Z-index stacking guide
+- Slot binding patterns
+- Animation timing details
+
+**Verification:**
+- ✅ All 6 components with proper types
+- ✅ TypeScript strict mode passes
+- ✅ Components handle edge cases (empty slots, out of range props)
+- ✅ Component registry complete
+- ✅ Full documentation with examples
 
 ---
 

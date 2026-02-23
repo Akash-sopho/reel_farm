@@ -1,2 +1,9 @@
-// Template compositions will be added here in Phase 1
-// e.g., export { PhotoDump } from './PhotoDump';
+export { PhotoDump } from './PhotoDump';
+export { QuoteCard } from './QuoteCard';
+export { ProductShowcase } from './ProductShowcase';
+export { Listicle } from './Listicle';
+export { TravelMontage } from './TravelMontage';
+export { Motivational } from './Motivational';
+export { BeforeAfter } from './BeforeAfter';
+export { DayInLife } from './DayInLife';
+export { TemplateComposition } from './TemplateComposition';

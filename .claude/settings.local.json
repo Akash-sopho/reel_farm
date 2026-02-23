@@ -9,7 +9,10 @@
       "Bash(chmod +x:*)",
       "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/backend && npx prisma generate 2>&1)",
       "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/video && npx tsc --noEmit 2>&1)",
-      "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/shared && npx tsc --noEmit 2>&1)"
+      "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/shared && npx tsc --noEmit 2>&1)",
+      "Bash(head:*)",
+      "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/backend && npm test -- media.test 2>&1)",
+      "Bash(cat:*)"
     ]
   }
 }
