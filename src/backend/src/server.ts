@@ -7,6 +7,7 @@ import { errorHandler } from './middleware/error-handler';
 import healthRoutes from './routes/health';
 import templatesRoutes from './routes/templates';
 import mediaRoutes from './routes/media';
+import projectsRoutes from './routes/projects';
 import prisma from './lib/prisma';
 import { initializeStorageService } from './services/storage.service';
 
@@ -30,8 +31,10 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
 app.use('/health', healthRoutes);
 app.use('/api/templates', templatesRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/projects', projectsRoutes);
 // Note: Templates routes handle /api/templates and /api/templates/:id
 // Note: Media routes handle /api/media/upload, /api/media/presigned-url, /api/media/confirm-upload
+// Note: Projects routes handle /api/projects (POST, GET list) and /api/projects/:id (GET, PATCH)
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
