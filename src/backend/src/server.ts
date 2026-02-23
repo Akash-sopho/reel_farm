@@ -10,9 +10,11 @@ import templatesRoutes from './routes/templates';
 import mediaRoutes from './routes/media';
 import projectsRoutes from './routes/projects';
 import rendersRoutes, { setRenderQueue } from './routes/renders';
+import intakeRoutes, { setIntakeQueue } from './routes/intake';
 import prisma from './lib/prisma';
 import { initializeStorageService } from './services/storage.service';
 import { createRenderWorker } from './jobs/render.worker';
+import { createIntakeWorker } from './jobs/intake.worker';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
@@ -36,10 +38,12 @@ app.use('/api/templates', templatesRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/projects', projectsRoutes);
 app.use('/api/renders', rendersRoutes);
+app.use('/api/intake', intakeRoutes);
 // Note: Templates routes handle /api/templates and /api/templates/:id
 // Note: Media routes handle /api/media/upload, /api/media/presigned-url, /api/media/confirm-upload
 // Note: Projects routes handle /api/projects (POST, GET list) and /api/projects/:id (GET, PATCH)
 // Note: Renders routes handle /api/renders/:id/status, /api/renders/:id/download, /api/projects/:id/render
+// Note: Intake routes handle /api/intake/fetch (POST), /api/intake/collections (GET), /api/intake/videos/:id (GET, PATCH)
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
@@ -74,9 +78,10 @@ const startServer = async (): Promise<void> => {
   }
 
   try {
-    // Initialize BullMQ for render pipeline
+    // Initialize BullMQ for render pipeline and intake
     const redisHost = process.env.REDIS_HOST || 'localhost';
     const redisPort = parseInt(process.env.REDIS_PORT || '6379', 10);
+    const redisUrl = `redis://${redisHost}:${redisPort}`;
 
     const renderQueue = new Queue('video-renders', {
       connection: {
@@ -87,15 +92,31 @@ const startServer = async (): Promise<void> => {
 
     setRenderQueue(renderQueue);
 
+    // Create intake queue
+    const intakeQueue = new Queue('video-intake', {
+      connection: {
+        host: redisHost,
+        port: redisPort,
+      },
+    });
+
+    setIntakeQueue(intakeQueue);
+
     // Start render worker
     const renderWorker = createRenderWorker();
     console.log('✓ Render worker initialized');
+
+    // Start intake worker
+    const intakeWorker = createIntakeWorker(redisUrl);
+    console.log('✓ Intake worker initialized');
 
     // Graceful shutdown
     process.on('SIGTERM', async () => {
       console.log('SIGTERM received, shutting down...');
       await renderWorker.close();
       await renderQueue.close();
+      await intakeWorker.close();
+      await intakeQueue.close();
       process.exit(0);
     });
   } catch (error) {

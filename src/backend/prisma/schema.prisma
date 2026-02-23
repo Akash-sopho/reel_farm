@@ -99,12 +99,14 @@ model CollectedVideo {
   platform      String   // 'instagram' | 'tiktok'
   title         String?
   caption       String?
-  videoUrl      String
+  videoUrl      String?
   thumbnailUrl  String?
   durationSeconds Int?
   tags          String[] @default([])
-  status        String   @default("FETCHING") // 'FETCHING' | 'READY' | 'FAILED'
+  status        String   @default("PENDING") // 'PENDING' | 'FETCHING' | 'READY' | 'FAILED'
+  errorMessage  String?  // populated if status is FAILED
   createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)

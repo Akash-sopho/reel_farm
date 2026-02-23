@@ -1008,3 +1008,110 @@ npx playwright test --ui # Interactive mode
 - Properly cleans up downloaded files
 
 ---
+
+## [P1.5-T03] Implement Intake API + BullMQ Worker
+
+**Completed:** Phase 1.5 | **Role:** Developer
+
+**Summary:**
+
+Implemented complete video intake pipeline: REST API for submitting Instagram/TikTok URLs, database models for tracking collections, and BullMQ worker for asynchronous video downloading and processing.
+
+**Files created:**
+- `src/backend/src/routes/intake.ts` — 4 REST endpoints for intake operations
+- `src/backend/src/services/intake.service.ts` — Business logic for URL management
+- `src/backend/src/jobs/intake.worker.ts` — BullMQ worker for video processing
+- `src/backend/src/validation/intake.ts` — Zod validation schemas and URL validators
+
+**Files modified:**
+- `src/backend/src/server.ts` — Registered intake routes, created intake queue, initialized worker
+- `src/backend/prisma/schema.prisma` — Updated CollectedVideo model (added errorMessage, updatedAt, made videoUrl nullable, changed default status to PENDING)
+
+**Technical Details:**
+
+**1. REST API Routes (`src/backend/src/routes/intake.ts`):**
+
+- **POST /api/intake/fetch** — Submit URLs for collection
+  - Accepts: `{ urls: string[] }` (1–20 items)
+  - Validates: Instagram/TikTok URL patterns only
+  - Creates CollectedVideo DB records with status PENDING
+  - Enqueues BullMQ jobs for processing
+  - Returns: 202 `{ jobIds, collectedVideoIds, message }`
+  - Errors: 400 `INVALID_URL`, 400 `BATCH_TOO_LARGE`
+
+- **GET /api/intake/collections** — List collected videos
+  - Query params: `page`, `limit` (max 100), `status`, `platform`, `tag`, `sortBy`, `sortOrder`
+  - Filters by: status, platform, tags (hasSome)
+  - Pagination: offset-based with total count
+  - Returns: `{ data, total, page, limit, pages }`
+
+- **PATCH /api/intake/videos/:id** — Update video metadata
+  - Body: `{ tags?: string[], caption?: string }`
+  - Validation: max 20 tags, max 30 chars per tag, max 500 char caption
+  - Returns: Updated video record
+
+- **GET /api/intake/videos/:id** — Get specific video
+
+**2. Service Layer (`src/backend/src/services/intake.service.ts`):**
+
+- `fetchVideos()` — Creates CollectedVideo records and enqueues jobs
+- `listCollectedVideos()` — Queries with filtering and pagination
+- `updateCollectedVideo()` — Updates tags/caption with ownership checks
+- `getCollectedVideo()` — Retrieves single video with auth verification
+
+**3. Validation (`src/backend/src/validation/intake.ts`):**
+
+- URL regex patterns:
+  - Instagram: `instagram.com/(reel|p)/{id}`
+  - TikTok: `tiktok.com/@{user}/video/{id}` or `vm.tiktok.com/{id}`
+- `detectPlatform()` — Identifies platform from URL
+- Zod schemas for request/response validation
+
+**4. BullMQ Worker (`src/backend/src/jobs/intake.worker.ts`):**
+
+- Queue: `video-intake`
+- Job payload: `{ collectedVideoId, sourceUrl, platform, userId }`
+- **Lifecycle:**
+  1. Job received, status → FETCHING
+  2. Call `fetchVideo(url)` from video-fetcher service (P1.5-T02)
+  3. On success: status → READY, save videoUrl, metadata, auto-extracted tags
+  4. On failure: status → FAILED, save errorMessage
+- **Retry strategy:** 3 retries, exponential backoff (3s → 6s → 12s)
+- **Non-retriable errors:** PRIVATE_VIDEO, DELETED_VIDEO, INVALID_URL (no retry)
+- **Tag extraction:** Simple keyword matching from title (dance, music, challenge, etc.)
+- **Concurrency:** 3 concurrent workers
+
+**5. Database Integration:**
+
+- **CollectedVideo model:**
+  - Fields: id, userId (nullable), sourceUrl, platform, status, title, caption, videoUrl, thumbnailUrl, durationSeconds, tags, errorMessage
+  - Status: PENDING → FETCHING → READY or FAILED
+  - Indexes on: userId, platform, status
+  - Relations: User (optional)
+- **Migrations:** Schema updated with errorMessage, updatedAt, nullable videoUrl
+
+**6. Server Integration (`src/backend/src/server.ts`):**
+
+- Routes: `app.use('/api/intake', intakeRoutes)`
+- Queue initialization: Creates `video-intake` BullMQ queue
+- Worker: `createIntakeWorker()` initialized on startup
+- Graceful shutdown: Closes worker and queue on SIGTERM
+
+**Acceptance Criteria Met:**
+- ✅ POST with valid Instagram/TikTok URLs returns 202, creates DB records, enqueues jobs
+- ✅ POST with invalid URL returns 400 `INVALID_URL`
+- ✅ POST with batch > 20 returns 400 `BATCH_TOO_LARGE`
+- ✅ Worker transitions status: PENDING → FETCHING → READY or FAILED
+- ✅ Error messages saved on failure
+- ✅ 3 retries with exponential backoff
+- ✅ Non-retriable errors handled correctly
+- ✅ TypeScript strict mode passes
+
+**Integration Points:**
+- Depends on P1.5-T02 (`fetchVideo()` service)
+- Storage: Uses existing `storageService` (MinIO)
+- Database: Prisma ORM
+- Queue: BullMQ with Redis
+- Unblocks: P1.5-T04 (frontend collection page) and P1.5-T05 (integration tests)
+
+---
