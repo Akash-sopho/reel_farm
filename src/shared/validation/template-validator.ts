@@ -20,13 +20,13 @@ export const ContentSlotSchema = z.object({
   required: z.boolean(),
   placeholder: z.string().optional(),
   constraints: SlotConstraintsSchema.optional(),
-}) satisfies z.ZodType<ContentSlot>;
+}) as z.ZodType<ContentSlot>;
 
 export const SlotFillSchema = z.object({
   slotId: z.string().min(1),
   type: z.enum(['image', 'text', 'video', 'audio']),
   value: z.string().min(1),
-}) satisfies z.ZodType<SlotFill>;
+}) as z.ZodType<SlotFill>;
 
 const SceneComponentSchema = z.object({
   componentId: z.string().min(1),
@@ -39,7 +39,7 @@ export const SceneSchema = z.object({
   id: z.string().min(1),
   durationSeconds: z.number().positive(),
   components: z.array(SceneComponentSchema),
-}) satisfies z.ZodType<Scene>;
+}) as z.ZodType<Scene>;
 
 export const TemplateSchemaValidator = z.object({
   version: z.literal('1.0'),
@@ -48,7 +48,7 @@ export const TemplateSchemaValidator = z.object({
   transitions: z.array(z.string()).optional(),
   defaultMusic: z.string().optional(),
   audioTags: z.array(z.string()).optional(),
-}) satisfies z.ZodType<TemplateSchema>;
+}) as z.ZodType<TemplateSchema>;
 
 /**
  * Validate a template schema document

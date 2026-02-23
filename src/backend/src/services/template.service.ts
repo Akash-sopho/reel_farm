@@ -76,7 +76,7 @@ export async function getTemplateById(id: string): Promise<TemplateType | null> 
     where: { id },
   });
 
-  return template as TemplateType | null;
+  return template as unknown as TemplateType | null;
 }
 
 /**

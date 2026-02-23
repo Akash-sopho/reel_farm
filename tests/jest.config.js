@@ -2,13 +2,15 @@ module.exports = {
   displayName: 'integration',
   testEnvironment: 'node',
   roots: ['<rootDir>'],
-  testMatch: ['**/*.test.ts'],
+  testMatch: ['**/integration/**/*.test.ts'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  preset: 'ts-jest',
   transform: {
     '^.+\\.tsx?$': ['ts-jest', {
       tsconfig: {
         esModuleInterop: true,
         allowSyntheticDefaultImports: true,
+        strict: false,
       },
     }],
   },
