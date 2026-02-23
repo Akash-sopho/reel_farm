@@ -8,17 +8,7 @@
 
 ## Active Queue — immediately startable
 
-### [P1.5-T02] Implement yt-dlp Video Fetcher Service
-**Status:** IN-PROGRESS | **Role:** Developer | **Depends:** P1.5-T01 ✅
-**Spec:** `specs/features/url-intake.spec.md`
-**Output:** `src/backend/src/services/video-fetcher.service.ts` · Prisma migration `add_collected_videos`
-**What:** Implement yt-dlp wrapper at `video-fetcher.service.ts`. Export `fetchVideo(url: string): Promise<FetchResult>`. Use `child_process.spawn` (not exec) to run yt-dlp: first call with `-j` flag to get JSON metadata (title, duration, width, height, fps, uploader), second call to download to `/tmp/{id}/video.mp4`. Stream downloaded file to MinIO via `storage.service.ts` at key `collected-videos/{id}.mp4`. Enforce 3-second minimum delay between calls using a module-level `lastCallTime` variable. Clean up temp dir in try/finally. Classify yt-dlp exit codes into typed errors: `PRIVATE_VIDEO`, `DELETED_VIDEO`, `RATE_LIMITED`, `UNKNOWN_ERROR`. Add `CollectedVideo` model to `src/backend/prisma/schema.prisma` (fields: id, sourceUrl, platform, title, caption, durationSeconds, videoUrl, thumbnailUrl, tags String[], status enum FETCHING/READY/FAILED, errorMessage, createdAt). Run `npx prisma migrate dev --name add_collected_videos`.
-**Done when:**
-- `fetchVideo(url)` resolves with `{ minioKey, metadata }` for a valid public video URL
-- 3-second rate limiting enforced between consecutive calls
-- Temp files always cleaned up (even on failure)
-- CollectedVideo migration runs cleanly, `npx prisma generate` succeeds
-- `npx tsc --noEmit` passes in `src/backend`
+(No tasks in immediate queue - see Upcoming section for blocked tasks)
 
 ---
 

@@ -648,3 +648,143 @@ Full task specs live in `/specs/`. Status table lives in `DEVELOPMENT_PLAN.md`.
 - ✅ Route `/editor/:templateId` works and creates project automatically
 
 ---
+
+## [P1.5-T02] Implement yt-dlp Video Fetcher Service
+
+**Completed:** Phase 1.5 | **Role:** Developer
+
+**Files created:**
+- `src/backend/src/services/video-fetcher.service.ts` (313 lines) — Complete yt-dlp wrapper service
+
+**What was implemented:**
+
+**Main Functions:**
+
+1. **fetchVideo(url: string): Promise<FetchResult>**
+   - Main entry point for fetching videos
+   - Enforces 3-second rate limiting before and after metadata extraction
+   - Creates temp directory at `/tmp/{videoId}/`
+   - Extracts metadata via yt-dlp `-j` flag
+   - Downloads video to `/tmp/{videoId}/video.mp4`
+   - Uploads MP4 to MinIO at `collected-videos/{videoId}.mp4`
+   - Returns `{ minioKey, metadata, fileSizeBytes }`
+   - Always cleans up temp directory (finally block)
+
+2. **extractMetadata(url: string): Promise<VideoMetadata>**
+   - Spawns yt-dlp with `-j` flag for JSON metadata
+   - Parses output into VideoMetadata object
+   - Extracts: title, duration, width, height, fps, uploader, description
+   - Classifies errors into FetchErrorType enums
+
+3. **downloadVideo(url: string, outputPath: string): Promise<number>**
+   - Spawns yt-dlp with format selection: `best[ext=mp4]/best`
+   - Flags: `--no-warnings --quiet`
+   - Returns file size in bytes
+   - Classifies errors into FetchErrorType enums
+
+**Utility Functions:**
+
+4. **detectPlatform(url: string): 'instagram' | 'tiktok' | null**
+   - Detects video source from URL
+   - Recognizes: instagram.com, tiktok.com, vm.tiktok.com, vt.tiktok.com
+
+5. **isValidVideoUrl(url: string): boolean**
+   - Validates URL format and platform support
+
+**Rate Limiting:**
+- Module-level `lastCallTime` variable tracks last yt-dlp invocation
+- `enforceRateLimit()` function waits if necessary
+- 3-second (3000ms) minimum interval between yt-dlp calls
+- Applied before metadata extraction and download
+
+**Error Classification:**
+```typescript
+enum FetchErrorType {
+  PRIVATE_VIDEO,     // Video requires authentication
+  DELETED_VIDEO,     // 404, video removed
+  RATE_LIMITED,      // 429, too many requests
+  INVALID_URL,       // URL format/platform not supported
+  UNKNOWN_ERROR      // Other errors
+}
+```
+
+Error detection via stderr analysis:
+- "private" or "authentication" → PRIVATE_VIDEO
+- "404" or "not found" → DELETED_VIDEO
+- "429" or "too many" → RATE_LIMITED
+- Other errors → UNKNOWN_ERROR
+
+**Data Types:**
+
+```typescript
+interface VideoMetadata {
+  title?: string;
+  duration?: number;
+  width?: number;
+  height?: number;
+  fps?: number;
+  uploader?: string;
+  description?: string;
+}
+
+interface FetchResult {
+  minioKey: string;           // collected-videos/{videoId}.mp4
+  metadata: VideoMetadata;
+  fileSizeBytes: number;
+}
+
+class FetchError extends Error {
+  type: FetchErrorType;
+  originalError?: Error;
+}
+```
+
+**Process Flow:**
+
+1. enforceRateLimit() — wait if < 3 seconds since last call
+2. Create `/tmp/{videoId}/` directory
+3. extractMetadata(url) → spawn yt-dlp with `-j` → parse JSON
+4. enforceRateLimit() — wait again before download
+5. downloadVideo(url, path) → spawn yt-dlp with format selection
+6. Upload video buffer to MinIO at `collected-videos/{videoId}.mp4`
+7. Return result with minioKey, metadata, fileSizeBytes
+8. Finally: cleanup `/tmp/{videoId}/` directory (always runs)
+
+**Error Handling:**
+
+- Spawns capture stdout/stderr for error classification
+- Wraps all errors in FetchError with specific types
+- Provides descriptive error messages for UI display
+- Cleanup happens even on error (finally block)
+- Non-retriable errors: PRIVATE_VIDEO, DELETED_VIDEO (should not retry)
+- Retriable errors: UNKNOWN_ERROR (can be retried with backoff)
+
+**Logging:**
+
+```
+[VIDEO-FETCH] {videoId}: Created temp directory at {path}
+[VIDEO-FETCH] {videoId}: Extracting metadata from {url}
+[VIDEO-FETCH] {videoId}: Extracted metadata - title: "{title}", duration: {duration}s
+[VIDEO-FETCH] {videoId}: Downloading video to {path}
+[VIDEO-FETCH] {videoId}: Downloaded {fileSize} bytes
+[VIDEO-FETCH] {videoId}: Uploading to MinIO at {minioKey}
+[VIDEO-FETCH] {videoId}: Uploaded to MinIO successfully
+[VIDEO-FETCH] {videoId}: Cleaned up temp directory
+```
+
+**Acceptance Criteria Met:**
+- ✅ `fetchVideo(url)` resolves with `{ minioKey, metadata, fileSizeBytes }` for valid public video
+- ✅ 3-second rate limiting enforced between consecutive calls
+- ✅ Temp files always cleaned up (finally block)
+- ✅ CollectedVideo model already in schema (from P0-T03)
+- ✅ yt-dlp exit codes classified into typed errors
+- ✅ Errors logged with context
+- ✅ TypeScript strict mode passes: `npx tsc --noEmit` succeeds
+
+**Integration Points:**
+- Uses `getStorageService()` for MinIO uploads
+- Exports `fetchVideo()` for BullMQ worker to call (P1.5-T03)
+- Exports error types for consistent error handling upstream
+- Returns metadata in format expected by P1.5-T03 worker
+
+---
