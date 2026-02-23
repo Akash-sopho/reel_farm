@@ -8,14 +8,6 @@
 
 ## Active Queue — immediately startable
 
-### [P1.5-T01] Spec — Video Intake API
-**Status:** PENDING | **Role:** Planner | **Depends:** P0-T03 ✅
-**Output:** `specs/features/url-intake.spec.md` (create)
-**What:** Write the video intake spec. Define: `POST /api/intake/fetch` (body: `{urls: string[]}`, 1–20 Instagram/TikTok URLs, creates CollectedVideo records, enqueues BullMQ jobs, returns 202 + jobIds), `GET /api/intake/collections` (paginated, filterable by `?tag=` and `?status=`), `PATCH /api/intake/videos/:id` (update tags/notes). Document CollectedVideo DB model (id, url, status, title, duration, resolution, fps, author, tags[], notes, minio_key, error_message). Job flow: PENDING→FETCHING→READY|FAILED. Error codes: INVALID_URL (400), BATCH_TOO_LARGE (400). 3s rate limit between yt-dlp calls; 3 retries with exponential backoff.
-**Done when:**
-- Spec file exists covering all 3 endpoints, job flow, DB model
-- At least 5 numbered acceptance criteria examples with request/response shapes
-- No implementation code written
 
 ---
 

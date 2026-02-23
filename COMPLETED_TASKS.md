@@ -328,3 +328,104 @@ Full task specs live in `/specs/`. Status table lives in `DEVELOPMENT_PLAN.md`.
 - ✅ Visual polish: hover effects, smooth transitions, proper spacing
 
 ---
+
+## [P1.5-T01] Spec — Video Intake API
+
+**Completed:** Phase 1.5 | **Role:** Planner
+
+**Files created:**
+- `specs/features/url-intake.spec.md` — complete video intake API specification
+
+**What was specified:**
+
+**3 REST Endpoints:**
+1. **POST /api/intake/fetch** (202 Accepted)
+   - Accepts array of 1–20 Instagram/TikTok URLs
+   - Creates CollectedVideo records with status FETCHING
+   - Enqueues BullMQ jobs for yt-dlp fetching
+   - Returns jobIds and collectedVideoIds
+   - Validates URLs, rejects invalid/unsupported platforms
+
+2. **GET /api/intake/collections** (200 OK)
+   - Paginated list of CollectedVideo (default 20 per page, max 100)
+   - Filterable by status (FETCHING|READY|FAILED), platform (instagram|tiktok), tag (multi-select)
+   - Sortable by createdAt (default DESC), durationSeconds, title
+   - Returns empty `data: []` if page > pages (not an error)
+   - Different response fields based on status (FETCHING vs. READY)
+
+3. **PATCH /api/intake/videos/:id** (200 OK)
+   - Update tags (array, max 20 tags, 30 chars each) or custom caption (max 500 chars)
+   - At least one field required
+   - Returns 404 if video not found
+   - Returns updated CollectedVideo with new values
+
+**CollectedVideo Database Model:**
+- id: UUID
+- userId: optional, foreign key to User
+- sourceUrl: original Instagram/TikTok URL
+- platform: 'instagram' | 'tiktok' (detected at submission)
+- title: nullable string (from yt-dlp metadata)
+- caption: nullable string (user-updatable notes)
+- durationSeconds: nullable integer (from yt-dlp)
+- videoUrl: stored MinIO path (collected-videos/{id}.mp4)
+- thumbnailUrl: extracted first frame (collected-videos/{id}-thumb.jpg)
+- tags: string array (auto-extracted + user-updatable)
+- status: 'FETCHING' | 'READY' | 'FAILED'
+- errorMessage: nullable (populated on failure)
+- createdAt: ISO 8601
+
+**BullMQ Worker:**
+- Queue: `video-collection`
+- Job payload: { collectedVideoId, sourceUrl, platform, userId? }
+- Lifecycle: FETCHING → (yt-dlp processes) → READY|FAILED
+- Retry strategy: 3 retries, exponential backoff (3s→6s→12s)
+- Do NOT retry on: private video, deleted video, invalid URL
+- DO retry on: network timeout, temporary yt-dlp failures, MinIO errors
+- Timeout: 120 seconds per video
+- Max concurrency: 5 videos simultaneously
+- Rate limit: 3-second minimum between yt-dlp invocations
+
+**yt-dlp Invocation:**
+- Download command with `--quiet --no-warnings -o {path} -w` flags
+- Metadata command with `-j` flag for JSON output
+- Extract: title, duration (seconds), uploader, description/caption
+- Temp directory: `/tmp/{collectedVideoId}/` with video.mp4 and metadata
+- Exit codes documented (0=success, 1/2=retry, 101=private video, 102=not found, other=retry)
+- Timeout handling: kill process if exceeds 120 seconds
+
+**MinIO Storage:**
+- Key format: `collected-videos/{collectedVideoId}.mp4` for video
+- Key format: `collected-videos/{collectedVideoId}-thumb.jpg` for thumbnail
+- Constraints: H.264 MP4, AAC audio, max 500MB video, JPEG thumbnail max 1280x720
+
+**Error Handling:**
+- Invalid/unsupported URLs (400 INVALID_URL)
+- Batch size > 20 (400 BATCH_TOO_LARGE)
+- Validation errors on PATCH (400 VALIDATION_ERROR with field details)
+- Video not found on PATCH (404 NOT_FOUND)
+- yt-dlp failures mapped to specific error codes: YTDLP_FAILED, YTDLP_PRIVATE, YTDLP_NOT_FOUND, FILE_SYSTEM_ERROR, STORAGE_ERROR
+
+**Rate Limiting & Performance:**
+- 3-second minimum interval between yt-dlp calls (avoid overwhelming sources)
+- Maximum 5 concurrent workers
+- 120-second timeout per video
+- Exponential backoff on retries with 3-second initial delay
+
+**Example Workflows:**
+1. Collect multiple videos and view with polling
+2. Handle collection failure with retry
+3. Filter and organize videos by tags/platform/status
+
+**Spec Quality:**
+- ✅ All 3 endpoints fully defined with request/response shapes (8 different response examples)
+- ✅ yt-dlp invocation completely specified (exact commands, exit codes, temp paths, cleanup)
+- ✅ All error cases enumerated with example error responses (6 error scenarios)
+- ✅ Job flow documented with lifecycle and retry strategy
+- ✅ CollectedVideo DB model detailed with all fields and constraints
+- ✅ Rate limiting and performance parameters specified
+- ✅ 3 example workflows with curl commands
+- ✅ Implementation notes for platform detection, URL validation, thumbnail extraction, auto-tagging, logging, rate limit handling
+- ✅ Data types, status codes, error format documented
+- ✅ No implementation code — pure specification
+
+---
