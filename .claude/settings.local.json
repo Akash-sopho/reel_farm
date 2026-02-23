@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd:*)",
+      "Bash(tail:*)",
+      "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/backend && npx tsc --noEmit 2>&1)",
+      "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/frontend && npx tsc --noEmit 2>&1)",
+      "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/video && npx tsc --noEmit 2>&14)",
+      "Bash(chmod +x:*)",
+      "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/backend && npx prisma generate 2>&1)",
+      "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/video && npx tsc --noEmit 2>&1)",
+      "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/shared && npx tsc --noEmit 2>&1)"
+    ]
+  }
+}

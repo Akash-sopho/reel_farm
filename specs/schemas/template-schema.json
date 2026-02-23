@@ -1,0 +1,185 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ReelForge Template Schema",
+  "description": "JSON Schema for ReelForge video templates",
+  "type": "object",
+  "required": ["version", "slots", "scenes"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1.0",
+      "description": "Schema version"
+    },
+    "slots": {
+      "type": "array",
+      "description": "Content slots that users fill in",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "label", "required"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique slot identifier"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["image", "text", "video", "audio"],
+            "description": "Type of content expected"
+          },
+          "label": {
+            "type": "string",
+            "description": "Display label for this slot"
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether this slot must be filled"
+          },
+          "placeholder": {
+            "type": "string",
+            "description": "Placeholder text (for text slots)"
+          },
+          "constraints": {
+            "type": "object",
+            "description": "Validation constraints for this slot",
+            "properties": {
+              "maxLength": {
+                "type": "integer",
+                "description": "Maximum text length"
+              },
+              "minWidth": {
+                "type": "integer",
+                "description": "Minimum image width in pixels"
+              },
+              "minHeight": {
+                "type": "integer",
+                "description": "Minimum image height in pixels"
+              },
+              "accept": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Allowed MIME types"
+              }
+            }
+          }
+        }
+      }
+    },
+    "scenes": {
+      "type": "array",
+      "description": "Scenes that make up the video",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "durationSeconds", "components"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique scene identifier"
+          },
+          "durationSeconds": {
+            "type": "number",
+            "description": "Duration of this scene in seconds",
+            "exclusiveMinimum": 0
+          },
+          "components": {
+            "type": "array",
+            "description": "Components rendered in this scene",
+            "items": {
+              "type": "object",
+              "required": ["componentId", "zIndex", "slotBindings", "props"],
+              "properties": {
+                "componentId": {
+                  "type": "string",
+                  "description": "Reference to component in registry"
+                },
+                "zIndex": {
+                  "type": "integer",
+                  "description": "Stack order (0 = back, higher = front)",
+                  "minimum": 0
+                },
+                "slotBindings": {
+                  "type": "object",
+                  "description": "Maps component props to slot IDs",
+                  "additionalProperties": {
+                    "type": "string"
+                  }
+                },
+                "props": {
+                  "type": "object",
+                  "description": "Static props for this component"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "description": "Transition effects between scenes",
+      "items": {
+        "type": "string"
+      }
+    },
+    "defaultMusic": {
+      "type": "string",
+      "description": "Default music track ID"
+    },
+    "audioTags": {
+      "type": "array",
+      "description": "Tags for music recommendation",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "version": "1.0",
+      "slots": [
+        {
+          "id": "photo-1",
+          "type": "image",
+          "label": "Photo 1",
+          "required": true,
+          "constraints": {
+            "minWidth": 1080,
+            "minHeight": 1920,
+            "accept": ["image/jpeg", "image/png"]
+          }
+        },
+        {
+          "id": "title-text",
+          "type": "text",
+          "label": "Title",
+          "required": false,
+          "placeholder": "Enter title",
+          "constraints": {
+            "maxLength": 100
+          }
+        }
+      ],
+      "scenes": [
+        {
+          "id": "scene-1",
+          "durationSeconds": 5,
+          "components": [
+            {
+              "componentId": "StaticImage",
+              "zIndex": 0,
+              "slotBindings": {
+                "image": "photo-1"
+              },
+              "props": {}
+            }
+          ]
+        }
+      ],
+      "audioTags": ["upbeat", "energetic"]
+    }
+  ]
+}
