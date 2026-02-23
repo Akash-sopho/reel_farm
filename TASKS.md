@@ -8,19 +8,6 @@
 
 ## Active Queue — immediately startable
 
-### [P1-T16] Frontend — Editor Page (Slot Filler)
-**Status:** IN-PROGRESS | **Role:** Developer | **Depends:** P1-T08 ✅, P1-T06 ✅, P1-T15 ✅
-**Spec:** `specs/api/projects.spec.md`, `specs/api/media.spec.md`
-**Output:** `src/frontend/src/pages/Editor.tsx`
-**What:** Build the editor at route `/editor/:templateId`. Three-panel layout: **Left panel (250px)** — scene list with filled/empty dot indicators per slot; clicking sets active scene. **Center panel** — show filled image for active scene's first image slot, or grey placeholder box. **Right panel (320px)** — slot editor for active scene: image slots use a dropzone (click or drag) that calls `POST /api/media/upload` and shows thumbnail on success; text slots use `<textarea>` with `maxLength` from slot constraints and auto-save on blur. **Project lifecycle:** on mount call `POST /api/projects` with templateId to create project, store projectId in URL params. On slot fill change call `PATCH /api/projects/:id` (debounced 500ms). **Header:** template name + "Generate Video" button disabled until project status is `ready`.
-**Done when:**
-- Can upload image to image slot — thumbnail appears, slot dot turns filled
-- Can type in text slot — persists on page refresh (fetched from API)
-- "Generate Video" button is disabled until all required slots are filled
-- `npx tsc --noEmit` passes in `src/frontend`
-
----
-
 ### [P1.5-T02] Implement yt-dlp Video Fetcher Service
 **Status:** PENDING | **Role:** Developer | **Depends:** P1.5-T01 ✅
 **Spec:** `specs/features/url-intake.spec.md`

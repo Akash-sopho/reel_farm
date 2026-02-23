@@ -534,3 +534,117 @@ Full task specs live in `/specs/`. Status table lives in `DEVELOPMENT_PLAN.md`.
 - ✅ Graceful error handling and status codes (202, 200, 400, 401, 404, 409)
 
 ---
+
+## [P1-T16] Frontend — Editor Page (Slot Filler)
+
+**Completed:** Phase 1 | **Role:** Developer
+
+**Files created:**
+- `src/frontend/src/pages/Editor.tsx` (420 lines) — Complete 3-panel editor component
+- `src/frontend/src/types/project.ts` — Project and SlotFill TypeScript interfaces
+- `src/frontend/src/utils/debounce.ts` — Debounce utility for API calls
+- Updated `src/frontend/src/App.tsx` — Added `/editor/:templateId` route
+
+**Three-Panel Layout:**
+
+1. **Left Panel (250px)** — Scene Navigator
+   - Displays list of all scenes in template
+   - Filled/empty indicator dots for each scene (green = filled, grey = empty)
+   - Click to set active scene
+   - Visual highlight for active scene (blue background)
+
+2. **Center Panel** — Image Preview
+   - Shows first image slot's filled thumbnail if available
+   - Grey gradient placeholder (1280x720) with image icon if empty
+   - Responsive sizing with max-width/max-height
+   - Rounded corners and shadow styling
+
+3. **Right Panel (320px)** — Slot Editor
+   - Displays only slots relevant to active scene
+   - **Image Slots:**
+     - Upload button with dropzone styling
+     - Click to open file picker (accept="image/*")
+     - Calls POST /api/media/upload on file select
+     - Shows upload state with spinner ("Uploading...")
+     - Changes to "✓ Change Image" when filled
+   - **Text Slots:**
+     - Textarea input with auto-sizing (3 rows)
+     - Placeholder text from slot schema
+     - maxLength constraint from slot.constraints
+     - Character counter display
+     - Auto-save on blur (debounced 500ms)
+   - Required indicator (red asterisk) for required slots
+
+**Project Lifecycle:**
+
+1. **Mount:** Fetches template by ID, creates new project via `POST /api/projects`
+2. **Slot Fill:** User edits slot → local state updates → debounced `PATCH /api/projects/:id`
+3. **API Sync:** Debouncer waits 500ms after last edit, then sends all slotFills to API
+4. **State Merge:** Response updates local project state with new status
+
+**Header:**
+- Template name displayed
+- Shows "Filled slots: X / Y" progress
+- "Back" button → returns to `/templates`
+- "Generate Video" button (green, disabled until status="ready")
+- Disabled state with grey styling and cursor-not-allowed
+
+**Features Implemented:**
+
+✅ **Three-panel responsive layout:**
+- Left: fixed 250px width
+- Right: fixed 320px width
+- Center: flex-1 fills remaining space
+- Overflow handling with scrollbars on left/right panels
+- Full viewport height minus header
+
+✅ **Scene/Slot Management:**
+- Dynamic scene list from template schema
+- Slot filtering per scene (only show slots used in scene's components)
+- Active scene state management
+- Visual indicators for filled vs. empty slots
+
+✅ **File Upload Integration:**
+- File input refs for each slot
+- POST /api/media/upload for uploads
+- Upload state tracking (uploading loading state)
+- Error handling with user alerts
+- URL passed directly to handleSlotChange
+
+✅ **Text Input & Validation:**
+- Debounced onChange with 500ms delay
+- maxLength constraint from slot schema
+- Character counter display
+- onBlur force-sends pending updates
+
+✅ **API Integration:**
+- Auto-creates project on mount with template name + timestamp
+- URL updates with projectId via replaceState
+- Debounced PATCH calls aggregate all slot changes
+- Responsive error handling and display
+
+✅ **State Management:**
+- Project state with all metadata
+- Template state with schema
+- Active scene index tracking
+- Upload state per slot
+- Error state with user display
+
+✅ **UX Polish:**
+- Loading spinner on initial load
+- Error modal with "Back to Templates" button
+- Smooth transitions and hover states
+- Disabled button state management
+- File input hidden with ref-based triggering
+
+**Acceptance Criteria Met:**
+- ✅ Can upload image to image slot → thumbnail appears in center panel
+- ✅ Slot dot turns filled (green) after upload
+- ✅ Can type in text slot → text persists (debounced PATCH API call)
+- ✅ Page refresh fetches latest project state from API
+- ✅ "Generate Video" button disabled until all required slots filled
+- ✅ Button enabled when project.status === "ready" (all required slots filled)
+- ✅ TypeScript strict mode passes: `npx tsc --noEmit` succeeds
+- ✅ Route `/editor/:templateId` works and creates project automatically
+
+---
