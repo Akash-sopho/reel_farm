@@ -6,7 +6,10 @@
     "studio": "remotion studio",
     "render": "remotion render src/Root.tsx HelloReelForge out/hello.mp4",
     "build": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest --roots=. --roots=../../tests/unit/video",
+    "test:watch": "jest --watch --roots=. --roots=../../tests/unit/video",
+    "test:coverage": "jest --coverage --roots=. --roots=../../tests/unit/video"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -14,9 +17,16 @@
     "remotion": "^4.0.139"
   },
   "devDependencies": {
+    "@testing-library/dom": "^9.3.4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^14.1.2",
+    "@types/jest": "^29.5.11",
     "@types/node": "^20.10.0",
     "@types/react": "^18.2.45",
     "@types/react-dom": "^18.2.18",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "ts-jest": "^29.1.1",
     "typescript": "^5.3.3"
   }
 }

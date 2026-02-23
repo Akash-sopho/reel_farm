@@ -12,7 +12,11 @@
       "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/shared && npx tsc --noEmit 2>&1)",
       "Bash(head:*)",
       "Bash(cd /c/Users/goyal/reelFarm/reel_farm/src/backend && npm test -- media.test 2>&1)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(cd C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\video:*)",
+      "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\video\" && npm test 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\video\" && npm test -- --listTests 2>&1)",
+      "Bash(cd C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm:*)"
     ]
   }
 }
