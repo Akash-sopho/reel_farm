@@ -8,18 +8,6 @@
 
 ## Active Queue — immediately startable
 
-### [P1-T15] Frontend — Template Gallery Page
-**Status:** PENDING | **Role:** Developer | **Depends:** P1-T02 ✅, P0-T05 ✅
-**Output:** `src/frontend/src/pages/Templates.tsx` · `src/frontend/src/components/templates/TemplateCard.tsx`
-**What:** Build the template gallery at route `/templates`. Fetch `GET /api/templates` on mount. Responsive grid (2col mobile → 4col desktop). `TemplateCard` shows thumbnail (grey fallback if null), name, category badge, duration badge. Click → navigate to `/editor/:templateId`. Category filter tabs above grid (All + unique categories from response). Loading skeleton, empty state, error state.
-**Done when:**
-- Templates load from API and render in responsive grid
-- Category filter tabs correctly filter results (All tab always shows everything)
-- Clicking a card navigates to `/editor/{id}`
-- `npx tsc --noEmit` passes in `src/frontend`
-
----
-
 ### [P1.5-T01] Spec — Video Intake API
 **Status:** PENDING | **Role:** Planner | **Depends:** P0-T03 ✅
 **Output:** `specs/features/url-intake.spec.md` (create)

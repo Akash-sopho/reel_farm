@@ -278,3 +278,53 @@ Full task specs live in `/specs/`. Status table lives in `DEVELOPMENT_PLAN.md`.
 - ✅ Data types, status codes, error format documented
 
 ---
+
+## [P1-T15] Frontend — Template Gallery Page
+
+**Completed:** Phase 1 | **Role:** Developer
+
+**Files created:**
+- `src/frontend/src/pages/Templates.tsx` — full gallery page implementation
+- `src/frontend/src/components/templates/TemplateCard.tsx` — individual template card component
+- `src/frontend/src/components/templates/index.ts` — component barrel export
+- `src/frontend/src/types/template.ts` — TypeScript types for Template interface
+
+**What was built:**
+
+**Templates.tsx (Gallery Page):**
+- Fetches `GET /api/templates` on component mount with category filter support
+- Responsive grid: 1 column (mobile) → 2 columns (tablet) → 4 columns (desktop)
+- **Category filter tabs:** "All" tab shows all templates + dynamically generated tabs for each unique category extracted from API response
+- "All" tab resets filter to show entire template list
+- **Loading state:** animated skeleton grid (8 placeholder cards) while fetching
+- **Error state:** error banner with retry button and user-friendly error message
+- **Empty state:** contextual empty message (different for filtered vs. no templates) with "View All" button
+- **TypeScript strict mode:** fully typed with Template interface and PaginatedResponse
+- Smooth transitions and hover effects on category tabs
+
+**TemplateCard.tsx (Card Component):**
+- Displays template thumbnail image (or grey gradient fallback with image icon if null)
+- Duration badge in bottom-right (e.g., "15s")
+- Template name (2-line clamp for long names)
+- Category badge (blue pill with white text)
+- Description text (2-line clamp, if present)
+- Tags display (shows first 2 tags + "+N" if more)
+- "Use Template" button that navigates to `/editor/{templateId}`
+- Hover effect: shadow increase + scale-up (105%) with smooth transition
+- Click handler navigates to editor page
+
+**Type definitions:**
+- Mirrored Template interface from shared types (id, name, slug, category, tags, description, schema, thumbnailUrl, durationSeconds, isPublished, createdAt, updatedAt)
+- PaginatedResponse interface for API response (data, total, page, limit)
+
+**Acceptance criteria met:**
+- ✅ Templates load from `GET /api/templates` API on mount
+- ✅ Responsive grid renders correctly (1/2/4 columns)
+- ✅ Category filter tabs work: clicking tab filters by category
+- ✅ "All" tab always shows everything (no filter applied)
+- ✅ Clicking a card navigates to `/editor/{templateId}` via useNavigate hook
+- ✅ `npx tsc --noEmit` passes with TypeScript strict mode
+- ✅ Loading, error, and empty states implemented
+- ✅ Visual polish: hover effects, smooth transitions, proper spacing
+
+---
