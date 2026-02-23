@@ -429,3 +429,108 @@ Full task specs live in `/specs/`. Status table lives in `DEVELOPMENT_PLAN.md`.
 - ✅ No implementation code — pure specification
 
 ---
+
+## [P1-T13] Implement Render Pipeline
+
+**Completed:** Phase 1 | **Role:** Developer
+
+**Files created/modified:**
+- `src/backend/src/services/render.service.ts` — Core render service with three main functions
+- `src/backend/src/jobs/render.worker.ts` — BullMQ worker for executing renders
+- `src/backend/src/routes/renders.ts` — Express routes for render endpoints
+- `src/backend/prisma/schema.prisma` — Updated Render model with new fields
+- `src/backend/src/server.ts` — Updated to register routes and initialize worker
+
+**Render Service Functions:**
+1. **triggerRender(projectId, userId, queue)**
+   - Validates project exists and belongs to user
+   - Validates project status is exactly "ready"
+   - Prevents duplicate renders (409 if already PENDING|PROCESSING)
+   - Creates Render DB record with status PENDING
+   - Enqueues BullMQ job to queue "video-renders"
+   - Returns {id, projectId, userId, status, jobId, createdAt, updatedAt}
+
+2. **getRenderStatus(renderId, userId)**
+   - Validates render exists and belongs to user (401 if not owner)
+   - Returns render with dynamic fields based on status
+   - DONE status includes: minioKey, outputUrl, fileSizeBytes
+   - FAILED status includes: errorMessage, errorCode
+   - Returns {id, projectId, userId, status, jobId?, startedAt?, completedAt?, ...}
+
+3. **getDownloadUrl(renderId, userId, storageService)**
+   - Validates render exists and belongs to user
+   - 400 error if render status is not DONE
+   - Generates presigned MinIO URL with 1-hour expiration
+   - Returns {id, projectId, minioKey, downloadUrl, expiresAt, fileSizeBytes, status}
+
+**BullMQ Worker (render.worker.ts):**
+- **Queue:** "video-renders"
+- **Job payload:** {renderId, projectId, userId, templateId, slotFills, musicUrl, durationSeconds, fps}
+- **Lifecycle:**
+  1. Update Render status to PROCESSING, set startedAt
+  2. Create temp directory `/tmp/{renderId}/`
+  3. Build props JSON with duration, fps, and slots object
+  4. Write props to `/tmp/{renderId}/props.json`
+  5. Execute Remotion CLI: `npx remotion render --props --output --timeout 600 src/video/src/Root.tsx TemplateRenderer-{templateId}`
+  6. On success: Upload output.mp4 to MinIO at `renders/{renderId}.mp4`
+  7. Generate presigned download URL
+  8. Update Render: status=DONE, minioKey, outputUrl, fileSizeBytes, completedAt
+  9. Update Project: status=done
+  10. Finally: Clean up `/tmp/{renderId}/` directory
+
+- **Error handling:** Catches Remotion CLI errors, classifies into error codes:
+  - RENDER_TIMEOUT (non-retriable)
+  - COMPONENT_NOT_FOUND (non-retriable)
+  - INVALID_PROPS (non-retriable)
+  - REMOTION_CLI_FAILED (retriable)
+  - Updates Render: status=FAILED, errorMessage, errorCode, completedAt
+
+- **Retry strategy:** 3 attempts, exponential backoff (5s→10s→20s)
+- **Concurrency:** 1 render at a time (sequential processing)
+- **Timeout:** 610 seconds total (allows CLI 600s timeout + buffer)
+- **Graceful shutdown:** Worker closes on SIGTERM
+
+**Express Routes (renders.ts):**
+
+1. **POST /api/projects/:id/render** (202 Accepted)
+   - Extracts userId from request (placeholder, would be from JWT)
+   - Calls triggerRender with projectId from URL
+   - Returns render record with jobId
+
+2. **GET /api/renders/:id/status** (200 OK)
+   - Returns current render status with all metadata
+   - Returns different fields based on status (PENDING|PROCESSING|DONE|FAILED)
+
+3. **GET /api/renders/:id/download** (200 OK)
+   - Returns presigned download URL for completed MP4
+   - 400 if render not DONE
+   - URL valid for 1 hour
+
+**Server Integration (server.ts):**
+- Imports Queue from bullmq and render-related modules
+- Initializes Redis connection: host=REDIS_HOST (default: localhost), port=REDIS_PORT (default: 6379)
+- Creates Queue instance for "video-renders"
+- Calls setRenderQueue to inject queue into routes
+- Creates and starts render worker via createRenderWorker()
+- Handles SIGTERM gracefully: closes worker, closes queue, exits
+- Registers `/api/renders` routes before 404 handler
+
+**Prisma Schema Changes (Render model):**
+- Added fields: jobId, minioKey, outputUrl, fileSizeBytes, errorCode, userId, updatedAt
+- Updated to align with spec response contract
+- Maintains all original fields: id, projectId, status, errorMessage, startedAt, completedAt, createdAt
+
+**Acceptance Criteria Met:**
+- ✅ End-to-end pipeline: POST /api/projects/:id/render → 202 with renderId
+- ✅ Poll via GET /api/renders/:id/status → transitions PENDING → PROCESSING → DONE
+- ✅ Download via GET /api/renders/:id/download → returns presigned URL to MP4
+- ✅ Failed renders set status FAILED with errorMessage and errorCode
+- ✅ Worker does not crash on render failure (updates DB, cleans up temp files)
+- ✅ Temp files always cleaned up in finally block
+- ✅ BullMQ configured: 3 retries, exponential backoff (5s→10s→20s)
+- ✅ Remotion CLI invocation matches spec: props JSON, output path, timeout 600s
+- ✅ MinIO upload with correct key format: renders/{renderId}.mp4
+- ✅ TypeScript strict mode passes: `npx tsc --noEmit` succeeds
+- ✅ Graceful error handling and status codes (202, 200, 400, 401, 404, 409)
+
+---

@@ -8,18 +8,6 @@
 
 ## Active Queue — immediately startable
 
-### [P1-T13] Implement Render Pipeline
-**Status:** IN-PROGRESS | **Role:** Developer | **Depends:** P1-T12 ✅, P1-T10 ✅, P1-T08 ✅
-**Spec:** `specs/features/video-rendering.spec.md`
-**Output:** `src/backend/src/services/render.service.ts` · `src/backend/src/jobs/render.worker.ts` · `src/backend/src/routes/renders.ts`
-**What:** Implement the full render pipeline. `render.service.ts`: `triggerRender(projectId)` validates project status is `ready`, creates Render DB record, enqueues BullMQ job to queue `video-renders`, returns renderId; `getRenderStatus(renderId)` fetches Render record. Worker (`render.worker.ts`): fetch project+template from DB, write props JSON to `/tmp/{renderId}/props.json`, spawn `npx remotion render src/video/src/Root.tsx TemplateRenderer /tmp/{renderId}/output.mp4 --props='/tmp/{renderId}/props.json' --timeout=600`, upload output to MinIO at `renders/{renderId}.mp4`, update Render status to DONE or FAILED with errorMessage. Routes: `POST /api/projects/:id/render` (202 + renderId), `GET /api/renders/:id/status`, `GET /api/renders/:id/download` (presigned URL, 400 if not DONE). Register worker in `server.ts`. BullMQ: 3 retries, exponential backoff 5s→10s→20s.
-**Done when:**
-- End-to-end works: create project → fill slots → POST render → poll status → status DONE → download URL returns valid MP4
-- Failed render sets status FAILED with errorMessage, does not crash worker
-- `npx tsc --noEmit` passes in `src/backend`
-
----
-
 ### [P1-T16] Frontend — Editor Page (Slot Filler)
 **Status:** PENDING | **Role:** Developer | **Depends:** P1-T08 ✅, P1-T06 ✅, P1-T15 ✅
 **Spec:** `specs/api/projects.spec.md`, `specs/api/media.spec.md`
