@@ -865,3 +865,63 @@ Implementation uses camelCase for all fields (`downloadUrl`, `expiresAt`, etc.) 
 - Part of the core render lifecycle: POST (trigger) → GET status (poll) → GET download (retrieve)
 
 ---
+
+## [P1-T18] Frontend — Export / Download Flow
+
+**Completed:** Phase 1 | **Role:** Developer
+
+**Summary:**
+
+Built modal/dialog for exporting finished videos. Users click "Generate Video" → render starts → modal shows live preview with progress → user downloads MP4 when ready.
+
+**Files created:**
+- `src/frontend/src/components/editor/ExportModal.tsx` — Complete export modal with preview, progress tracking, and download
+
+**Files modified:**
+- `src/frontend/src/pages/Editor.tsx` — Integrated ExportModal; updated handleGenerateVideo to trigger render; added error notifications
+
+**Technical Details:**
+
+**ExportModal.tsx component:**
+- Props: `{ renderId, projectId, projectName, template, slotFills, musicUrl, onClose }`
+- Polls `GET /api/renders/:id/status` every 1.5 seconds until render completes
+- Status progression:
+  - `PENDING` (10% progress) → "Queued for rendering"
+  - `PROCESSING` (50% progress) → "Rendering video..." with spinner
+  - `DONE` (100% progress) → "Render complete!" with green progress bar
+  - `FAILED` (0% progress) → Error message displayed
+- Displays render metadata: file size (MB), start/end timestamps
+- Download button appears only when status is `DONE`
+- Download flow: click button → calls `GET /api/renders/:id/download` → gets presigned URL → triggers browser download
+- Error handling: network errors, 404s, and render failures all display clear messages
+
+**Integration with Editor.tsx:**
+- New state: `showExportModal`, `renderId`, `renderError`
+- `handleGenerateVideo`: calls `POST /api/projects/:id/render` → stores renderId → shows modal
+- ExportModal callback `onClose`: clears modal state and render ID
+- Error notifications: toast-style error banner at bottom right for render initiation failures
+- Modal closes when: user clicks close button (disabled during PROCESSING), modal unmounts
+
+**UI/UX Details:**
+- Modal: fixed overlay with full-height video preview
+- Progress bar: smooth color transitions (blue PROCESSING → green DONE / red FAILED)
+- Sticky header/footer: header shows project name, footer shows action buttons
+- Responsive: max-width 4xl, adapts to smaller screens with padding
+- Accessibility: disabled buttons show visual feedback when processing
+
+**Acceptance Criteria Met:**
+- ✅ Clicking "Generate Video" opens export modal with live preview
+- ✅ Modal shows render progress with spinner and live percentage (10% PENDING, 50% PROCESSING, 100% DONE)
+- ✅ Download button appears when render is DONE
+- ✅ Click download triggers actual MP4 download via presigned URL
+- ✅ Error states shown clearly: render failures + error messages, network errors with toast notifications
+
+**Testing:**
+- Manually tested full flow:
+  - Click "Generate Video" → modal opens with preview
+  - View progress as render moves through PENDING → PROCESSING → DONE
+  - Click "Download MP4" → browser downloads file
+  - Verify error handling with invalid render ID
+- TypeScript strict mode passes
+
+---

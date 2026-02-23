@@ -4,6 +4,7 @@ import { Template } from '@/types/template';
 import { Project, SlotFill } from '@/types/project';
 import { createDebouncedCallback } from '@/utils/debounce';
 import { VideoPreview } from '@/components/editor/VideoPreview';
+import { ExportModal } from '@/components/editor/ExportModal';
 
 interface Scene {
   id: string;
@@ -22,6 +23,9 @@ export const Editor: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [renderId, setRenderId] = useState<string | null>(null);
+  const [renderError, setRenderError] = useState<string | null>(null);
 
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement }>({});
   const debouncedUpdateRef = useRef<any>(null);
@@ -146,14 +150,36 @@ export const Editor: React.FC = () => {
     fileInputRefs.current[slotId]?.click();
   };
 
-  // Generate video (navigate to render page)
-  const handleGenerateVideo = () => {
+  // Generate video (trigger render)
+  const handleGenerateVideo = async () => {
     if (!project || project.status !== 'ready') {
-      alert('Project must be ready to render');
+      setRenderError('Project must be ready to render');
       return;
     }
-    // TODO: Navigate to render/download page once implemented
-    alert('Render feature coming soon');
+
+    try {
+      setRenderError(null);
+      const res = await fetch(`/api/projects/${project.id}/render`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(
+          errorData.error || 'Failed to start render'
+        );
+      }
+
+      const renderData = await res.json();
+      setRenderId(renderData.id);
+      setShowExportModal(true);
+    } catch (err) {
+      setRenderError(
+        err instanceof Error ? err.message : 'Failed to start render'
+      );
+    }
   };
 
   if (loading) {
@@ -366,6 +392,51 @@ export const Editor: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Render error notification */}
+      {renderError && (
+        <div className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md">
+          <div className="flex items-start gap-3">
+            <svg
+              className="w-5 h-5 flex-shrink-0 mt-0.5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <div className="flex-1">
+              <p className="font-semibold">Render Error</p>
+              <p className="text-sm mt-1">{renderError}</p>
+            </div>
+            <button
+              onClick={() => setRenderError(null)}
+              className="text-white hover:text-red-200"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && template && project && renderId && (
+        <ExportModal
+          renderId={renderId}
+          projectId={project.id}
+          projectName={project.name}
+          template={template.schema}
+          slotFills={project.slotFills}
+          musicUrl={project.musicUrl || undefined}
+          onClose={() => {
+            setShowExportModal(false);
+            setRenderId(null);
+          }}
+        />
+      )}
     </div>
   );
 };

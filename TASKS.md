@@ -8,17 +8,15 @@
 
 ## Active Queue — immediately startable
 
-### [P1-T18] Frontend — Export / Download Flow
-**Status:** PENDING | **Role:** Developer | **Depends:** P1-T14 ✅, P1-T17 ✅
+### [P1-T19] Test — End-to-End MVP Flow
+**Status:** PENDING | **Role:** Tester | **Depends:** P1-T18 ✅
 **Spec:** N/A
-**Output:** `src/frontend/src/components/editor/ExportModal.tsx` · updated `src/frontend/src/pages/Editor.tsx`
-**What:** Build modal/dialog that displays live preview (from P1-T17), shows render progress while encoding, and provides download button. Render modal appears after user clicks "Generate Video" button. Show spinner + progress % while rendering. Display download button once render is DONE. Handle errors gracefully (render failed, timeout, etc.). Poll `GET /api/renders/:id/status` every 1-2 seconds until status is DONE or FAILED.
+**Output:** `tests/e2e/mvp-flow.spec.ts`
+**What:** Write Playwright e2e test covering complete MVP flow: user selects template from gallery → fills slots with images/text → clicks export → waits for render to complete → downloads MP4. Verify that downloaded file is a valid MP4. Test should be fast (mock/stub slow operations if needed) but comprehensive (cover all user-facing steps).
 **Done when:**
-- Clicking "Generate Video" opens export modal with live preview
-- Modal shows render progress with spinner and percentage
-- Download button appears when render is DONE (calls `GET /api/renders/:id/download`)
-- Click download triggers actual MP4 download to user's device
-- Error states shown clearly (render failed, timeout)
+- Playwright test passes end-to-end
+- Test covers: template selection, slot filling, export, render polling, download
+- Downloaded file verified as valid MP4 (magic bytes check)
 
 ---
 
@@ -39,6 +37,5 @@
 
 | ID | Title | Blocked by |
 |---|---|---|
-| P1-T19 | Test — End-to-End MVP Flow (Playwright) | P1-T18 |
 | P1.5-T04 | Frontend — Collection Workspace Page (/collect) | P1.5-T03 |
 | P1.5-T05 | Test — Intake Pipeline (integration + unit) | P1.5-T03 |
