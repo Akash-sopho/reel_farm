@@ -22,7 +22,8 @@
       "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\backend\" && npx prisma db seed 2>&1)",
       "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\video\" && npx -y remotion --version 2>&1)",
       "Bash(taskkill:*)",
-      "Bash(npx kill-port:*)"
+      "Bash(npx kill-port:*)",
+      "Bash(echo Migration command completed:*)"
     ]
   }
 }
