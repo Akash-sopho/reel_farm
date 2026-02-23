@@ -16,7 +16,13 @@
       "Bash(cd C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\video:*)",
       "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\video\" && npm test 2>&1)",
       "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\video\" && npm test -- --listTests 2>&1)",
-      "Bash(cd C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm:*)"
+      "Bash(cd C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm:*)",
+      "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\" && npm run first-run 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\backend\" && npx prisma db push --accept-data-loss 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\backend\" && npx prisma db seed 2>&1)",
+      "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\video\" && npx -y remotion --version 2>&1)",
+      "Bash(taskkill:*)",
+      "Bash(npx kill-port:*)"
     ]
   }
 }

@@ -2082,12 +2082,303 @@ Write a Playwright end-to-end test that covers the complete MVP user journey. Fi
 
 ---
 
-## Phase 1.5+ Tasks
+## Phase 1.5: Video Intake Pipeline
 
-Phase 1.5 and later tasks will be added by the supervisor as Phase 1 nears completion.
+These tasks are **unblocked** (P0-T03 is DONE) and can run in parallel with remaining Phase 1 work.
+
+---
+
+## [P1.5-T01] Spec: Video Intake API
+
+**Status:** PENDING
+**Phase:** 1.5
+**Depends on:** P0-T03
+**Agent role:** Planner
+**Spec file:** `specs/features/url-intake.spec.md`
+
+### What to do
+
+Write the full spec for the video intake feature at `specs/features/url-intake.spec.md`. This spec is the contract for P1.5-T02 and P1.5-T03.
+
+Cover the following:
+
+**Endpoints:**
+- `POST /api/intake/fetch` — accepts `{ urls: string[] }` (1–20 Instagram/TikTok URLs), validates format, creates `CollectedVideo` DB records with status `PENDING`, enqueues one BullMQ job per URL, returns `{ jobIds: string[], collectionId: string }`
+- `GET /api/intake/collections` — paginated list of collected videos; supports `?tag=`, `?status=`, `?page=`, `?limit=`; returns `{ videos: CollectedVideo[], total: number, page: number }`
+- `PATCH /api/intake/videos/:id` — update `tags` (string array) and/or `notes` (string) on a collected video
+
+**Job flow:**
+- Worker picks up job, updates status to `FETCHING`
+- Calls yt-dlp to download video + metadata
+- Uploads video file to MinIO at `collected/{id}.mp4`
+- Saves metadata (title, duration, resolution, fps, original_url, author) to DB
+- Updates status to `READY` on success, `FAILED` on error (store error message)
+- 3-second delay enforced between consecutive yt-dlp calls (rate limit)
+
+**Status transitions:** `PENDING` → `FETCHING` → `READY` | `FAILED`
+
+**Error cases:**
+- Invalid URL format — 400 with `INVALID_URL`
+- Too many URLs (> 20) — 400 with `BATCH_TOO_LARGE`
+- Private/deleted video (yt-dlp error) — job transitions to `FAILED`, error stored in DB
+- Rate limited by platform — job retries up to 3 times with exponential backoff
+
+**DB model:** `CollectedVideo` — id, url, status, title, duration, resolution, fps, author, tags (string[]), notes, minio_key, error_message, created_at, updated_at
+
+**Acceptance criteria examples:**
+- POST with valid Instagram/TikTok URLs returns 202 with job IDs
+- POST with 21 URLs returns 400 BATCH_TOO_LARGE
+- POST with non-Instagram/TikTok URL returns 400 INVALID_URL
+- GET collections returns paginated results filterable by tag and status
+- PATCH updates tags and notes, returns updated record
+
+### Acceptance criteria
+
+- `specs/features/url-intake.spec.md` exists and covers all endpoints, job flow, status transitions, error cases, and DB model
+- Spec includes at least 5 numbered acceptance criteria examples with request/response shapes
+- No implementation code written in this task
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1.5-T02] Implement yt-dlp Video Fetcher Service
+
+**Status:** PENDING
+**Phase:** 1.5
+**Depends on:** P1.5-T01
+**Agent role:** Developer
+**Spec file:** `specs/features/url-intake.spec.md`
+
+### What to do
+
+Implement the yt-dlp wrapper service at `src/backend/src/services/video-fetcher.service.ts`.
+
+Requirements:
+- Spawns `yt-dlp` as a child process using Node's `child_process.spawn` (not `exec`)
+- Downloads video to a temp directory, then streams it to MinIO via `storage.service.ts`
+- Parses yt-dlp JSON metadata output (`--print-json` or `--dump-json`) for: title, duration, resolution (width × height), fps, uploader/author, original_url
+- Returns a structured result: `{ minioKey: string, metadata: VideoMetadata }`
+- Enforces a 3-second minimum delay between consecutive calls (module-level `lastCallTime` variable)
+- Classifies yt-dlp exit errors into: `PRIVATE_VIDEO`, `DELETED_VIDEO`, `RATE_LIMITED`, `UNKNOWN_ERROR`
+- Cleans up temp files even if upload fails (try/finally)
+- All storage operations go through `storage.service.ts` — never call MinIO SDK directly
+
+TypeScript types to define (or import from shared):
+```typescript
+interface VideoMetadata {
+  title: string;
+  duration: number;       // seconds
+  width: number;
+  height: number;
+  fps: number;
+  author: string;
+  originalUrl: string;
+}
+
+interface FetchResult {
+  minioKey: string;
+  metadata: VideoMetadata;
+}
+```
+
+Prisma schema addition needed:
+- Add `CollectedVideo` model to `src/backend/prisma/schema.prisma` (see spec for fields)
+- Run migration: `npx prisma migrate dev --name add_collected_videos`
+
+### Acceptance criteria
+
+- `video-fetcher.service.ts` exports a `fetchVideo(url: string): Promise<FetchResult>` function
+- 3-second rate limiting is enforced between calls
+- Temp files are always cleaned up
+- yt-dlp errors are classified and thrown as typed errors
+- `CollectedVideo` Prisma model exists and migration runs cleanly
+- `npx tsc --noEmit` passes in `src/backend`
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1.5-T03] Implement Intake API + Job Queue
+
+**Status:** PENDING
+**Phase:** 1.5
+**Depends on:** P1.5-T02
+**Agent role:** Developer
+**Spec file:** `specs/features/url-intake.spec.md`
+
+### What to do
+
+Implement the intake REST endpoints and BullMQ worker.
+
+**Route file:** `src/backend/src/routes/intake.ts`
+
+`POST /api/intake/fetch`:
+- Validate body with Zod: `{ urls: string[] }`, 1–20 items, each matching `/^https?:\/\/(www\.)?(instagram\.com|tiktok\.com)\//`
+- Create one `CollectedVideo` record per URL in DB (status: `PENDING`)
+- Enqueue one BullMQ job per URL into queue named `video-intake`
+- Return 202: `{ jobIds: string[], videos: CollectedVideo[] }`
+
+`GET /api/intake/collections`:
+- Query params (all optional): `tag` (string), `status` (enum), `page` (default 1), `limit` (default 20, max 100)
+- Return 200: `{ videos: CollectedVideo[], total: number, page: number, limit: number }`
+
+`PATCH /api/intake/videos/:id`:
+- Validate body: `{ tags?: string[], notes?: string }`
+- Update record, return 200 with updated `CollectedVideo`
+- Return 404 if not found
+
+**Worker file:** `src/backend/src/jobs/intake.worker.ts`
+
+- Connect to BullMQ queue `video-intake`
+- Process jobs: call `fetchVideo(url)` from video-fetcher service
+- On start: update DB record status to `FETCHING`
+- On success: update status to `READY`, save `minioKey` and metadata fields
+- On failure: update status to `FAILED`, save `error_message`
+- Configure BullMQ retry: 3 attempts, exponential backoff starting at 5s
+
+Register route in `src/backend/src/server.ts` at `/api/intake`.
+
+### Acceptance criteria
+
+- All three endpoints return correct status codes and response shapes per spec
+- Invalid URLs return 400 with `INVALID_URL` code
+- Batch > 20 returns 400 with `BATCH_TOO_LARGE` code
+- Worker transitions statuses correctly (PENDING → FETCHING → READY/FAILED)
+- Worker retries up to 3 times on failure
+- Route registered in server.ts
+- `npx tsc --noEmit` passes in `src/backend`
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1.5-T04] Frontend: Collection Workspace Page
+
+**Status:** PENDING
+**Phase:** 1.5
+**Depends on:** P1.5-T03
+**Agent role:** Developer
+**Spec file:** `specs/features/url-intake.spec.md`
+
+### What to do
+
+Build the Collection Workspace page at `src/frontend/src/pages/Collect.tsx`, accessible at route `/collect`.
+
+**UI sections:**
+
+1. **URL Input Area** (top of page)
+   - Multi-line textarea for pasting URLs (one per line)
+   - "Fetch Videos" button — disabled while fetch is in progress
+   - Shows inline error if any URL is invalid format or batch > 20
+   - On success, clears textarea and shows success toast
+
+2. **Video Grid** (main content area)
+   - Displays all collected videos as cards in a responsive grid (2–4 cols)
+   - Each card shows: thumbnail (from MinIO if available, else placeholder), title, duration, status badge (color-coded: PENDING=gray, FETCHING=blue/spinner, READY=green, FAILED=red), author
+   - Failed cards show error message on hover/expand
+   - Clicking a READY card opens a simple modal with metadata details
+
+3. **Filters** (above grid)
+   - Status filter: All | Pending | Fetching | Ready | Failed (button group)
+   - Tag filter: text input that filters by tag (client-side)
+
+4. **Tag Assignment**
+   - Each card has a "+" tag button
+   - Clicking opens an inline tag input; pressing Enter adds the tag and calls `PATCH /api/intake/videos/:id`
+   - Tags render as removable chips on the card
+
+5. **Real-time status polling**
+   - While any video has status PENDING or FETCHING, poll `GET /api/intake/collections` every 3 seconds
+   - Stop polling when all visible videos are READY or FAILED
+
+**State management:** use React `useState` + `useEffect` hooks (no external state library needed for this page).
+
+**API client:** create `src/frontend/src/utils/intake-api.ts` with typed functions for all three intake endpoints.
+
+### Acceptance criteria
+
+- Route `/collect` renders the page
+- Submitting valid URLs calls `POST /api/intake/fetch` and shows results in the grid
+- Status badges update via polling while jobs are in flight
+- Tag assignment calls `PATCH` and updates the UI without full page reload
+- Filter buttons correctly filter the grid
+- `npx tsc --noEmit` passes in `src/frontend`
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## [P1.5-T05] Test: Intake Pipeline
+
+**Status:** PENDING
+**Phase:** 1.5
+**Depends on:** P1.5-T03
+**Agent role:** Tester
+**Spec file:** `specs/features/url-intake.spec.md`
+
+### What to do
+
+Write integration tests for the intake pipeline at `tests/integration/intake.test.ts`.
+
+**Setup:**
+- Use `supertest` to hit the Express app
+- Mock the `child_process.spawn` call so yt-dlp is never actually invoked
+- Mock `storage.service.ts` so MinIO is never called
+- Use the `reelforge_test` PostgreSQL database (separate from dev)
+- Clean `collected_videos` table before each test
+
+**Test cases to cover:**
+
+`POST /api/intake/fetch`:
+- Valid single Instagram URL → 202, creates DB record with status PENDING, returns jobId
+- Valid single TikTok URL → 202
+- Valid batch of 20 URLs → 202, creates 20 DB records
+- 21 URLs → 400, code `BATCH_TOO_LARGE`
+- Non-Instagram/TikTok URL → 400, code `INVALID_URL`
+- Empty array → 400 (validation error)
+- Missing `urls` field → 400
+
+`GET /api/intake/collections`:
+- Returns paginated results (default page=1, limit=20)
+- `?status=PENDING` filters correctly
+- `?tag=funny` filters to videos with that tag
+- `?page=2&limit=5` returns correct slice
+
+`PATCH /api/intake/videos/:id`:
+- Updates tags array successfully
+- Updates notes successfully
+- Non-existent ID → 404
+
+**Worker behavior (unit test, not integration):**
+- Create a separate test at `tests/unit/intake-worker.test.ts`
+- Mock `fetchVideo` to resolve successfully → assert DB record updated to READY
+- Mock `fetchVideo` to reject → assert DB record updated to FAILED with error_message
+
+### Acceptance criteria
+
+- All listed test cases are implemented and passing
+- Mock prevents any real yt-dlp or MinIO calls during tests
+- Tests use `reelforge_test` database
+- `npm test` in `src/backend` runs both test files without errors
+
+### Output
+
+(Fill in after completion)
+
+---
+
+## Phase 2+ Tasks
 
 **Reserved IDs:**
-- `P1.5-T01` through `P1.5-T05` — Video intake pipeline (URL fetching, collections)
 - `P2-T01` through `P2-T11` — AI suggestions, music library
 - `P3-T01` through `P3-T07` — Publishing (Instagram, TikTok, scheduling)
 - `P4-T01` through `P4-T07` — Template extraction from video collections

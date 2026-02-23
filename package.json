@@ -5,15 +5,20 @@
   "private": true,
   "scripts": {
     "install-all": "npm install && cd src/backend && npm install && cd ../frontend && npm install && cd ../video && npm install && cd ../shared && npm install",
+    "dev": "concurrently --names \"backend,frontend,video\" --prefix-colors \"blue,green,magenta\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:video\"",
     "dev:backend": "cd src/backend && npm run dev",
     "dev:frontend": "cd src/frontend && npm run dev",
     "dev:video": "cd src/video && npm run studio",
+    "first-run": "bash scripts/first-run.sh",
     "build:backend": "cd src/backend && npm run build",
     "build:frontend": "cd src/frontend && npm run build",
     "build:video": "cd src/video && npm run build",
     "test:backend": "cd src/backend && npm test",
     "test:frontend": "cd src/frontend && npm test",
     "test:video": "cd src/video && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
   },
   "engines": {
     "node": ">=20.0.0",

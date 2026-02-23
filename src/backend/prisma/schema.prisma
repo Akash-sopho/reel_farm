@@ -110,7 +110,7 @@ model CollectedVideo {
 
 model MusicTrack {
   id              String   @id @default(cuid())
-  title           String
+  title           String   @unique
   artist          String
   url             String
   durationSeconds Int
