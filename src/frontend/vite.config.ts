@@ -16,6 +16,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@video': path.resolve(__dirname, '../video/src'),
     },
   },
 });

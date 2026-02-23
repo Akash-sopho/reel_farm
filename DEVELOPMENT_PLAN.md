@@ -66,10 +66,10 @@ P1.5-T01 (Spec) → P1.5-T02 (yt-dlp Service) → P1.5-T03 (API + Queue) → P1.
 | P1-T11 | Test — Remotion Components + Renderer | Tester | P1-T09, P1-T10 | ✅ DONE |
 | P1-T12 | Spec — Render Pipeline API | Planner | P1-T10 | ✅ DONE |
 | P1-T13 | Implement Render Pipeline | Dev | P1-T12, P1-T10, P1-T08 | ✅ DONE |
-| P1-T14 | Render Download Endpoint | Dev | P1-T13 | ⏳ PENDING |
+| P1-T14 | Render Download Endpoint | Dev | P1-T13 | ✅ DONE |
 | P1-T15 | Frontend — Template Gallery Page | Dev | P1-T02, P0-T05 | ✅ DONE |
 | P1-T16 | Frontend — Editor Page (Slot Filler) | Dev | P1-T08, P1-T06, P1-T15 | ✅ DONE |
-| P1-T17 | Frontend — Remotion Preview Player | Dev | P1-T16, P1-T10 | ⏳ PENDING |
+| P1-T17 | Frontend — Remotion Preview Player | Dev | P1-T16, P1-T10 | ✅ DONE |
 | P1-T18 | Frontend — Export / Download Flow | Dev | P1-T13, P1-T17 | ⏳ PENDING |
 | P1-T19 | Test — End-to-End MVP Flow | Tester | P1-T18 | ⏳ PENDING |
 
