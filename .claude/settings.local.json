@@ -25,7 +25,8 @@
       "Bash(npx kill-port:*)",
       "Bash(echo Migration command completed:*)",
       "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\frontend\" && npx tsc --noEmit 2>&1)",
-      "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\frontend\" && npm run typecheck 2>&1)"
+      "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\frontend\" && npm run typecheck 2>&1)",
+      "Bash(ls:*)"
     ]
   }
 }

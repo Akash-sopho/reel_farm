@@ -8,17 +8,6 @@
 
 ## Active Queue — immediately startable
 
-### [P1-T19] Test — End-to-End MVP Flow
-**Status:** PENDING | **Role:** Tester | **Depends:** P1-T18 ✅
-**Spec:** N/A
-**Output:** `tests/e2e/mvp-flow.spec.ts`
-**What:** Write Playwright e2e test covering complete MVP flow: user selects template from gallery → fills slots with images/text → clicks export → waits for render to complete → downloads MP4. Verify that downloaded file is a valid MP4. Test should be fast (mock/stub slow operations if needed) but comprehensive (cover all user-facing steps).
-**Done when:**
-- Playwright test passes end-to-end
-- Test covers: template selection, slot filling, export, render polling, download
-- Downloaded file verified as valid MP4 (magic bytes check)
-
----
 
 ### [P1.5-T03] Implement Intake API + BullMQ Worker
 **Status:** PENDING | **Role:** Developer | **Depends:** P1.5-T02 ✅
