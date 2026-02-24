@@ -16,7 +16,7 @@ Creators pick a template, fill slots (images, text), add music/voiceover, and ex
 | 1 | Template gallery, slot-fill editor, Remotion preview, MP4 export | ✅ DONE |
 | 1.5 | URL intake pipeline — fetch Instagram/TikTok videos via yt-dlp | ✅ DONE |
 | 2 | AI text/image suggestions, music library | ✅ DONE |
-| 3 | Direct publish to Instagram & TikTok, scheduling | 🔄 IN PROGRESS |
+| 3 | Direct publish to Instagram & TikTok, scheduling | ✅ DONE |
 | 4 | AI template extraction from video collections | 📋 PLANNED |
 
 ---
