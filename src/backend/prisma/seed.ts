@@ -33,6 +33,111 @@ function createDummyMP3(): Buffer {
 }
 
 /**
+ * Create a simple PNG thumbnail (1x1 pixel with color)
+ */
+function createColoredPNG(color: string): Buffer {
+  // Simple 100x100 PNG with a solid color - minimal valid PNG
+  // Format: 8-bit grayscale for simplicity
+  const width = 100;
+  const height = 100;
+
+  // Parse hex color to RGB
+  const r = parseInt(color.slice(1, 3), 16);
+  const g = parseInt(color.slice(3, 5), 16);
+  const b = parseInt(color.slice(5, 7), 16);
+
+  // PNG signature
+  const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+  // IHDR chunk (13 bytes: width, height, bit depth, color type, compression, filter, interlace)
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // color type (2 = RGB)
+  ihdr[10] = 0; // compression method
+  ihdr[11] = 0; // filter method
+  ihdr[12] = 0; // interlace method
+
+  // Calculate CRC for IHDR
+  const crc32 = (data: Buffer): number => {
+    let crc = 0xffffffff;
+    for (let i = 0; i < data.length; i++) {
+      crc = crc ^ data[i];
+      for (let j = 0; j < 8; j++) {
+        crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+      }
+    }
+    return (crc ^ 0xffffffff) >>> 0;
+  };
+
+  const ihdrType = Buffer.from('IHDR');
+  const ihdrChunk = Buffer.concat([ihdrType, ihdr]);
+  const ihdrCrc = Buffer.alloc(4);
+  ihdrCrc.writeUInt32BE(crc32(ihdrChunk), 0);
+  const ihdrLength = Buffer.alloc(4);
+  ihdrLength.writeUInt32BE(13, 0);
+
+  // IDAT chunk with single scanline of color
+  const scanline = Buffer.alloc(width * 3 + 1);
+  scanline[0] = 0; // filter type
+  for (let i = 0; i < width; i++) {
+    scanline[i * 3 + 1] = r;
+    scanline[i * 3 + 2] = g;
+    scanline[i * 3 + 3] = b;
+  }
+
+  // Simplified: just use uncompressed data
+  const idatData = Buffer.alloc(scanline.length * height);
+  for (let y = 0; y < height; y++) {
+    scanline.copy(idatData, y * scanline.length);
+  }
+
+  // For simplicity, use a minimal IDAT
+  const idatType = Buffer.from('IDAT');
+  const idatChunk = Buffer.concat([idatType, idatData]);
+  const idatCrc = Buffer.alloc(4);
+  idatCrc.writeUInt32BE(crc32(idatChunk), 0);
+  const idatLength = Buffer.alloc(4);
+  idatLength.writeUInt32BE(idatData.length, 0);
+
+  // IEND chunk
+  const iendType = Buffer.from('IEND');
+  const iendCrc = Buffer.alloc(4);
+  iendCrc.writeUInt32BE(crc32(iendType), 0);
+  const iendLength = Buffer.alloc(4);
+  iendLength.writeUInt32BE(0, 0);
+
+  return Buffer.concat([
+    signature,
+    ihdrLength, ihdrChunk, ihdrCrc,
+    idatLength, idatChunk, idatCrc,
+    iendLength, iendType, iendCrc,
+  ]);
+}
+
+/**
+ * Upload thumbnail image to MinIO
+ */
+async function uploadThumbnail(templateSlug: string, color: string): Promise<string | null> {
+  try {
+    const minioKey = `thumbnails/${templateSlug}.png`;
+    const pngBuffer = createColoredPNG(color);
+
+    await minioClient.putObject(MINIO_BUCKET, minioKey, pngBuffer, pngBuffer.length, {
+      'Content-Type': 'image/png',
+    });
+
+    const url = `http://${process.env.MINIO_ENDPOINT || 'localhost'}:${process.env.MINIO_PORT || 9000}/${MINIO_BUCKET}/${minioKey}`;
+    console.log(`  ↳ Thumbnail uploaded: ${url}`);
+    return url;
+  } catch (error) {
+    console.warn(`  ⚠ Could not upload thumbnail for ${templateSlug}:`, error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
+/**
  * Ensure MinIO bucket exists
  */
 async function ensureBucket(): Promise<void> {
@@ -86,16 +191,17 @@ async function main() {
   console.log(`✓ Created/Updated test user: ${testUser.email}`);
 
   // 1. Photo Dump Template
+  const photoThumbnailUrl = await uploadThumbnail('photo-dump', '#FF6B6B');
   const photoTemplate = await prisma.template.upsert({
     where: { slug: 'photo-dump' },
-    update: {},
+    update: { thumbnailUrl: photoThumbnailUrl },
     create: {
       name: 'Photo Dump',
       slug: 'photo-dump',
       category: 'photo-dump',
       tags: ['trending', 'instagram', 'photos', 'fast-paced'],
       description: 'A fast-paced sequence of 5 photos with transitions. Perfect for showcasing multiple moments in 15 seconds.',
-      thumbnailUrl: null,
+      thumbnailUrl: photoThumbnailUrl,
       durationSeconds: 15,
       isPublished: true,
       schema: {
@@ -121,16 +227,17 @@ async function main() {
   console.log(`✓ Template: ${photoTemplate.name}`);
 
   // 2. Quote Card Template
+  const quoteThumbnailUrl = await uploadThumbnail('quote-card', '#4ECDC4');
   const quoteTemplate = await prisma.template.upsert({
     where: { slug: 'quote-card' },
-    update: {},
+    update: { thumbnailUrl: quoteThumbnailUrl },
     create: {
       name: 'Quote Card',
       slug: 'quote-card',
       category: 'quote',
       tags: ['trending', 'quotes', 'motivation', 'text'],
       description: 'An inspiring quote with smooth fade-in animation on a background image. Perfect for motivational content.',
-      thumbnailUrl: null,
+      thumbnailUrl: quoteThumbnailUrl,
       durationSeconds: 10,
       isPublished: true,
       schema: {
@@ -158,16 +265,17 @@ async function main() {
   console.log(`✓ Template: ${quoteTemplate.name}`);
 
   // 3. Product Showcase Template
+  const productThumbnailUrl = await uploadThumbnail('product-showcase', '#45B7D1');
   const productTemplate = await prisma.template.upsert({
     where: { slug: 'product-showcase' },
-    update: {},
+    update: { thumbnailUrl: productThumbnailUrl },
     create: {
       name: 'Product Showcase',
       slug: 'product-showcase',
       category: 'product',
       tags: ['trending', 'product', 'ecommerce', 'promotion'],
       description: 'Showcase a product with 3 feature scenes. Each scene highlights a different aspect with text overlay.',
-      thumbnailUrl: null,
+      thumbnailUrl: productThumbnailUrl,
       durationSeconds: 12,
       isPublished: true,
       schema: {
@@ -213,16 +321,17 @@ async function main() {
   console.log(`✓ Template: ${productTemplate.name}`);
 
   // 4. Listicle Template
+  const listThumbnailUrl = await uploadThumbnail('listicle', '#FFA07A');
   const listicleTemplate = await prisma.template.upsert({
     where: { slug: 'listicle' },
-    update: {},
+    update: { thumbnailUrl: listThumbnailUrl },
     create: {
       name: 'Listicle - Top 5',
       slug: 'listicle',
       category: 'listicle',
       tags: ['trending', 'list', 'top5', 'education'],
       description: 'A numbered listicle with 5 items. Each item gets its own scene with animated text reveal.',
-      thumbnailUrl: null,
+      thumbnailUrl: listThumbnailUrl,
       durationSeconds: 15,
       isPublished: true,
       schema: {
@@ -286,16 +395,17 @@ async function main() {
   console.log(`✓ Template: ${listicleTemplate.name}`);
 
   // 5. Travel Montage Template
+  const travelThumbnailUrl = await uploadThumbnail('travel-montage', '#98D8C8');
   const travelTemplate = await prisma.template.upsert({
     where: { slug: 'travel-montage' },
-    update: {},
+    update: { thumbnailUrl: travelThumbnailUrl },
     create: {
       name: 'Travel Montage',
       slug: 'travel-montage',
       category: 'travel',
       tags: ['trending', 'travel', 'adventure', 'lifestyle'],
       description: 'A scenic travel montage with 5 destination photos and location names. Perfect for travel vlogging.',
-      thumbnailUrl: null,
+      thumbnailUrl: travelThumbnailUrl,
       durationSeconds: 20,
       isPublished: true,
       schema: {
@@ -341,16 +451,17 @@ async function main() {
   console.log(`✓ Template: ${travelTemplate.name}`);
 
   // 6. Motivational Template
+  const motivationalThumbnailUrl = await uploadThumbnail('motivational', '#FFEB3B');
   const motivationalTemplate = await prisma.template.upsert({
     where: { slug: 'motivational' },
-    update: {},
+    update: { thumbnailUrl: motivationalThumbnailUrl },
     create: {
       name: 'Motivational Impact',
       slug: 'motivational',
       category: 'motivational',
       tags: ['trending', 'motivation', 'inspiration', 'text'],
       description: 'A powerful single-screen motivational message with a background image and film grain effect.',
-      thumbnailUrl: null,
+      thumbnailUrl: motivationalThumbnailUrl,
       durationSeconds: 8,
       isPublished: true,
       schema: {
@@ -377,16 +488,17 @@ async function main() {
   console.log(`✓ Template: ${motivationalTemplate.name}`);
 
   // 7. Before & After Template
+  const beforeAfterThumbnailUrl = await uploadThumbnail('before-after', '#4CAF50');
   const beforeAfterTemplate = await prisma.template.upsert({
     where: { slug: 'before-after' },
-    update: {},
+    update: { thumbnailUrl: beforeAfterThumbnailUrl },
     create: {
       name: 'Before & After',
       slug: 'before-after',
       category: 'before-after',
       tags: ['trending', 'transformation', 'comparison', 'results'],
       description: 'A split-screen transformation video showing before and after with text labels.',
-      thumbnailUrl: null,
+      thumbnailUrl: beforeAfterThumbnailUrl,
       durationSeconds: 12,
       isPublished: true,
       schema: {
@@ -422,16 +534,17 @@ async function main() {
   console.log(`✓ Template: ${beforeAfterTemplate.name}`);
 
   // 8. Day in My Life Template
+  const dayInLifeThumbnailUrl = await uploadThumbnail('day-in-life', '#9C27B0');
   const dayInLifeTemplate = await prisma.template.upsert({
     where: { slug: 'day-in-life' },
-    update: {},
+    update: { thumbnailUrl: dayInLifeThumbnailUrl },
     create: {
       name: 'Day in My Life',
       slug: 'day-in-life',
       category: 'lifestyle',
       tags: ['trending', 'lifestyle', 'daily', 'vlog'],
       description: 'A lifestyle vlog showing 5 moments in a day with time labels and descriptions.',
-      thumbnailUrl: null,
+      thumbnailUrl: dayInLifeThumbnailUrl,
       durationSeconds: 25,
       isPublished: true,
       schema: {

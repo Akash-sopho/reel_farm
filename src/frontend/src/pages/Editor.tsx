@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Template } from '@/types/template';
 import { Project, SlotFill } from '@/types/project';
 import { createDebouncedCallback } from '@/utils/debounce';
@@ -17,7 +17,9 @@ interface Scene {
 
 export const Editor: React.FC = () => {
   const { templateId } = useParams<{ templateId: string }>();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const projectIdFromQuery = searchParams.get('projectId');
 
   // State
   const [project, setProject] = useState<Project | null>(null);
@@ -92,37 +94,57 @@ export const Editor: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        // Fetch template first
-        const templateRes = await fetch(`/api/templates/${templateId}`);
-        if (!templateRes.ok) throw new Error('Template not found');
-        const templateData = await templateRes.json();
-        setTemplate(templateData);
+        // If projectId is in query params, load existing project
+        if (projectIdFromQuery) {
+          const projectRes = await fetch(`/api/projects/${projectIdFromQuery}`);
+          if (!projectRes.ok) throw new Error('Project not found');
+          const projectData = await projectRes.json();
+          setProject(projectData);
 
-        // Create or get project - for now we create a new one
-        const projectRes = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            templateId,
-            name: `${templateData.name} - ${new Date().toLocaleString()}`,
-          }),
-        });
+          // Fetch template using the project's templateId
+          const templateRes = await fetch(`/api/templates/${projectData.templateId}`);
+          if (!templateRes.ok) throw new Error('Template not found');
+          const templateData = await templateRes.json();
+          setTemplate(templateData);
 
-        if (!projectRes.ok) throw new Error('Failed to create project');
-        const projectData = await projectRes.json();
-        setProject(projectData);
-
-        // Set selected track name if music is already set
-        if (projectData.musicUrl) {
-          // Try to extract track name from URL (format: music/{id}.mp3)
-          const match = projectData.musicUrl.match(/music\/([^\/]+)\.mp3/);
-          if (match) {
-            setSelectedTrackName(match[1]);
+          // Set selected track name if music is already set
+          if (projectData.musicUrl) {
+            const match = projectData.musicUrl.match(/music\/([^\/]+)\.mp3/);
+            if (match) {
+              setSelectedTrackName(match[1]);
+            }
           }
-        }
+        } else {
+          // Create new project from template
+          const templateRes = await fetch(`/api/templates/${templateId}`);
+          if (!templateRes.ok) throw new Error('Template not found');
+          const templateData = await templateRes.json();
+          setTemplate(templateData);
 
-        // Update URL with projectId
-        window.history.replaceState(null, '', `/editor/${templateId}?projectId=${projectData.id}`);
+          const projectRes = await fetch('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              templateId,
+              name: `${templateData.name} - ${new Date().toLocaleString()}`,
+            }),
+          });
+
+          if (!projectRes.ok) throw new Error('Failed to create project');
+          const projectData = await projectRes.json();
+          setProject(projectData);
+
+          // Set selected track name if music is already set
+          if (projectData.musicUrl) {
+            const match = projectData.musicUrl.match(/music\/([^\/]+)\.mp3/);
+            if (match) {
+              setSelectedTrackName(match[1]);
+            }
+          }
+
+          // Update URL with projectId
+          window.history.replaceState(null, '', `/editor/${templateId}?projectId=${projectData.id}`);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to initialize editor');
       } finally {
@@ -133,7 +155,7 @@ export const Editor: React.FC = () => {
     if (templateId) {
       initializeProject();
     }
-  }, [templateId]);
+  }, [templateId, projectIdFromQuery]);
 
   // Update project slots via API (debounced)
   async function updateProjectSlots(slotFills: SlotFill[]) {

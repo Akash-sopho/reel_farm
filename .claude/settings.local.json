@@ -36,7 +36,30 @@
       "Bash(docker ps:*)",
       "Bash(docker compose:*)",
       "Bash(sleep 8:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(node:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Bash(cd /c/Users/goyal/reelFarm/reel_farm && git check-ignore -v playwright-report 2>&1)",
+      "Bash(true:*)",
+      "Bash(cd /c/Users/goyal/reelFarm/reel_farm && git add --dry-run scripts/playwright/ .gitignore 2>&1)",
+      "Bash(npx ts-node:*)",
+      "Bash(npx playwright:*)",
+      "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\" && npx tsx scripts/playwright/verify-h-t02.ts 2>&1)",
+      "Bash(netstat:*)",
+      "Bash(pkill:*)",
+      "Bash(cd /c/Users/goyal/reelFarm/reel_farm && sed -i 's/:5173/:5175/g' scripts/playwright/diagnose-projects-route.js && node scripts/playwright/diagnose-projects-route.js 2>&1)",
+      "Bash(pgrep:*)",
+      "Bash(sed -i 's/:5175/:5176/g' /c/Users/goyal/reelFarm/reel_farm/scripts/playwright/capture-myprojects.js && cd /c/Users/goyal/reelFarm/reel_farm && node scripts/playwright/capture-myprojects.js 2>&1)",
+      "Bash(lsof -i :5173 -i :5174 -i :5175 -i :5176 2>/dev/null | grep LISTEN || echo \"Checking alternative method...\" && netstat -ano 2>/dev/null | grep -i listening | grep -E \"517[0-9]\" || echo \"Frontend port not found in common range\")",
+      "Bash(sed -i 's/:5176/:5173/g' /c/Users/goyal/reelFarm/reel_farm/scripts/playwright/capture-myprojects.js && cd /c/Users/goyal/reelFarm/reel_farm && node scripts/playwright/capture-myprojects.js 2>&1)",
+      "Bash(netstat -ano | findstr \":5173\" 2>&1)",
+      "Bash(netstat -ano | findstr \"LISTENING\" | findstr \":5173\" 2>&1)",
+      "Bash(python:*)",
+      "Bash(netstat -ano | findstr \"LISTENING\" | findstr \"5173\" 2>&1)",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)"
     ]
   }
 }

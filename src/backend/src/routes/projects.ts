@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
+import prisma from '../lib/prisma';
 import * as projectService from '../services/project.service';
 import {
   CreateProjectSchema,
@@ -37,7 +38,20 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
     }
 
     // Extract user ID from auth (TODO: implement auth middleware)
-    const userId = (req as any).userId || 'test-user';
+    let userId = (req as any).userId;
+    if (!userId) {
+      // For development: get the test user from the database
+      const testUser = await prisma.user.findUnique({
+        where: { email: 'test@example.com' },
+      });
+      if (!testUser) {
+        return res.status(500).json({
+          error: 'Test user not found in database. Run seed script first.',
+          code: 'USER_NOT_FOUND',
+        });
+      }
+      userId = testUser.id;
+    }
 
     // Create project
     const project = await projectService.createProject({
@@ -66,7 +80,19 @@ router.post('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     // Extract user ID from auth (TODO: implement auth middleware)
-    const userId = (req as any).userId || 'test-user';
+    let userId = (req as any).userId;
+    if (!userId) {
+      const testUser = await prisma.user.findUnique({
+        where: { email: 'test@example.com' },
+      });
+      if (!testUser) {
+        return res.status(500).json({
+          error: 'Test user not found in database',
+          code: 'USER_NOT_FOUND',
+        });
+      }
+      userId = testUser.id;
+    }
 
     // Get project
     const project = await projectService.getProject(req.params.id, userId);
@@ -112,7 +138,19 @@ router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => 
     }
 
     // Extract user ID from auth (TODO: implement auth middleware)
-    const userId = (req as any).userId || 'test-user';
+    let userId = (req as any).userId;
+    if (!userId) {
+      const testUser = await prisma.user.findUnique({
+        where: { email: 'test@example.com' },
+      });
+      if (!testUser) {
+        return res.status(500).json({
+          error: 'Test user not found in database',
+          code: 'USER_NOT_FOUND',
+        });
+      }
+      userId = testUser.id;
+    }
 
     // Update project
     const project = await projectService.updateProject(req.params.id, userId, validatedBody);
@@ -165,7 +203,19 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
     }
 
     // Extract user ID from auth (TODO: implement auth middleware)
-    const userId = (req as any).userId || 'test-user';
+    let userId = (req as any).userId;
+    if (!userId) {
+      const testUser = await prisma.user.findUnique({
+        where: { email: 'test@example.com' },
+      });
+      if (!testUser) {
+        return res.status(500).json({
+          error: 'Test user not found in database',
+          code: 'USER_NOT_FOUND',
+        });
+      }
+      userId = testUser.id;
+    }
 
     // List projects
     const result = await projectService.listProjects({

@@ -1,13 +1,14 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Navbar } from '@/components/layout/Navbar';
-import { Home } from '@/pages/Home';
-import { Templates } from '@/pages/Templates';
-import { Editor } from '@/pages/Editor';
-import { Collect } from '@/pages/Collect';
-import { TemplateDrafts } from '@/pages/TemplateDrafts';
-import { AuthCallback } from '@/pages/AuthCallback';
-import { NotFound } from '@/pages/NotFound';
-import '@/index.css';
+import { Navbar } from './components/layout/Navbar';
+import { Home } from './pages/Home';
+import { Templates } from './pages/Templates';
+import { Editor } from './pages/Editor';
+import { Collect } from './pages/Collect';
+import { TemplateDrafts } from './pages/TemplateDrafts';
+import { MyProjects } from './pages/MyProjects';
+import { AuthCallback } from './pages/AuthCallback';
+import { NotFound } from './pages/NotFound';
+import './index.css';
 
 function App() {
   return (
@@ -19,8 +20,8 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/templates/drafts" element={<TemplateDrafts />} />
+            <Route path="/projects" element={<MyProjects />} />
             <Route path="/editor/:templateId" element={<Editor />} />
-            <Route path="/collect" element={<Collect />} />
             <Route path="/auth/callback/success" element={<AuthCallback />} />
             <Route path="/auth/callback/error" element={<AuthCallback />} />
             <Route path="*" element={<NotFound />} />

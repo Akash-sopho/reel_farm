@@ -13,6 +13,10 @@ dist/
 out/
 build/
 
+# TypeScript compiled output in source directories (use tsc --outDir instead)
+src/frontend/src/**/*.js
+src/frontend/src/**/*.d.ts
+
 # IDE
 .vscode/
 .idea/
@@ -41,3 +45,11 @@ out/
 
 # OS
 Thumbs.db
+
+# Playwright
+playwright-report/
+test-results/
+downloads/
+
+# Browser exploration scripts — per-directory .gitignore handles exclusions
+# (see scripts/playwright/.gitignore)

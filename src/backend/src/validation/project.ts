@@ -9,7 +9,7 @@ const SlotFillSchema = z.object({
 
 // Create project schema
 export const CreateProjectSchema = z.object({
-  templateId: z.string().uuid('Invalid template ID format').min(1, 'Template ID is required'),
+  templateId: z.string().min(1, 'Template ID is required'),
   name: z.string().max(255, 'Name must be less than 255 characters').optional(),
 });
 

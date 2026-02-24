@@ -1,0 +1,7 @@
+# Ignore all ad-hoc Claude-generated scripts (not starting with _)
+*.ts
+!_helpers.ts
+
+# Ignore output directory contents (keep the dir via .gitkeep)
+output/*
+!output/.gitkeep
