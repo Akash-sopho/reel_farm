@@ -11,10 +11,13 @@ import mediaRoutes from './routes/media';
 import projectsRoutes from './routes/projects';
 import rendersRoutes, { setRenderQueue } from './routes/renders';
 import intakeRoutes, { setIntakeQueue } from './routes/intake';
+import aiRoutes from './routes/ai';
+import musicRoutes from './routes/music';
 import prisma from './lib/prisma';
 import { initializeStorageService } from './services/storage.service';
 import { createRenderWorker } from './jobs/render.worker';
 import { createIntakeWorker } from './jobs/intake.worker';
+import { createRedisClient, closeRedisClient } from './lib/redis';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
@@ -39,11 +42,15 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/projects', projectsRoutes);
 app.use('/api/renders', rendersRoutes);
 app.use('/api/intake', intakeRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/music', musicRoutes);
 // Note: Templates routes handle /api/templates and /api/templates/:id
 // Note: Media routes handle /api/media/upload, /api/media/presigned-url, /api/media/confirm-upload
 // Note: Projects routes handle /api/projects (POST, GET list) and /api/projects/:id (GET, PATCH)
 // Note: Renders routes handle /api/renders/:id/status, /api/renders/:id/download, /api/projects/:id/render
 // Note: Intake routes handle /api/intake/fetch (POST), /api/intake/collections (GET), /api/intake/videos/:id (GET, PATCH)
+// Note: AI routes handle /api/ai/suggest/text (POST), /api/ai/suggest/image (POST)
+// Note: Music routes handle /api/music (GET), /api/music/:id (GET), /api/music/:id/preview (GET)
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
@@ -75,6 +82,15 @@ const startServer = async (): Promise<void> => {
   } catch (error) {
     console.warn('⚠ Storage service initialization failed (is MinIO running?):', error instanceof Error ? error.message : error);
     console.warn('  Continuing anyway - you may need to run: docker compose up -d');
+  }
+
+  try {
+    // Initialize Redis client for rate limiting and caching
+    await createRedisClient();
+    console.log('✓ Redis client initialized');
+  } catch (error) {
+    console.warn('⚠ Redis client initialization failed (is Redis running?):', error instanceof Error ? error.message : error);
+    console.warn('  Continuing anyway - rate limiting will not work until Redis is available');
   }
 
   try {
@@ -117,6 +133,7 @@ const startServer = async (): Promise<void> => {
       await renderQueue.close();
       await intakeWorker.close();
       await intakeQueue.close();
+      await closeRedisClient();
       process.exit(0);
     });
   } catch (error) {

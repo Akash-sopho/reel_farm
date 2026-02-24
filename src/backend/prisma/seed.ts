@@ -1,6 +1,71 @@
 import { PrismaClient } from '@prisma/client';
+import * as Minio from 'minio';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const prisma = new PrismaClient();
+
+// MinIO client for uploading music files
+const minioClient = new Minio.Client({
+  endPoint: process.env.MINIO_ENDPOINT || 'localhost',
+  port: parseInt(process.env.MINIO_PORT || '9000', 10),
+  useSSL: process.env.MINIO_USE_SSL === 'true',
+  accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+  secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
+});
+
+const MINIO_BUCKET = process.env.MINIO_BUCKET || 'reelforge';
+
+/**
+ * Create a minimal MP3 file buffer (dummy audio file for development)
+ * This is a valid MP3 header + minimal frame data, safe for testing
+ */
+function createDummyMP3(): Buffer {
+  // MP3 frame header: 0xFF 0xFB (sync word + MPEG-1 Layer 3 + no CRC)
+  // This creates a minimal valid MP3 file that can be recognized
+  const header = Buffer.from([
+    0xFF, 0xFB, 0x10, 0x00, // MP3 sync + bitrate info
+    0x4C, 0x61, 0x6D, 0x65, // "Lame" encoder tag
+  ]);
+  // Pad with silence frames (minimal 1KB file)
+  const padding = Buffer.alloc(1024, 0);
+  return Buffer.concat([header, padding]);
+}
+
+/**
+ * Ensure MinIO bucket exists
+ */
+async function ensureBucket(): Promise<void> {
+  try {
+    const exists = await minioClient.bucketExists(MINIO_BUCKET);
+    if (!exists) {
+      console.log(`Creating MinIO bucket: ${MINIO_BUCKET}`);
+      await minioClient.makeBucket(MINIO_BUCKET, 'us-east-1');
+    }
+  } catch (error) {
+    console.warn(`⚠ Could not ensure bucket exists (MinIO may not be running):`, error instanceof Error ? error.message : error);
+  }
+}
+
+/**
+ * Upload music file to MinIO
+ */
+async function uploadMusicFile(trackId: string, title: string): Promise<boolean> {
+  try {
+    const minioKey = `music/${trackId}.mp3`;
+    const mp3Buffer = createDummyMP3();
+
+    await minioClient.putObject(MINIO_BUCKET, minioKey, mp3Buffer, mp3Buffer.length, {
+      'Content-Type': 'audio/mpeg',
+    });
+
+    console.log(`  ↳ Uploaded to MinIO: ${minioKey}`);
+    return true;
+  } catch (error) {
+    console.warn(`  ⚠ Could not upload ${title} to MinIO:`, error instanceof Error ? error.message : error);
+    return false;
+  }
+}
 
 async function main() {
   console.log('🌱 Seeding database...');
@@ -411,59 +476,65 @@ async function main() {
   });
   console.log(`✓ Template: ${dayInLifeTemplate.name}`);
 
-  // Create or update music tracks
-  const track1 = await prisma.musicTrack.upsert({
-    where: { title: 'Upbeat Summer' },
-    update: {},
-    create: {
-      title: 'Upbeat Summer',
-      artist: 'The Beats',
-      url: 's3://reelforge-music/upbeat-summer.mp3',
-      durationSeconds: 120,
-      bpm: 128,
-      mood: 'energetic',
-      genre: 'pop',
-      tags: ['trending', 'upbeat', 'summer'],
-      isActive: true,
-    },
-  });
-  console.log(`✓ Music track: ${track1.title}`);
+  // Ensure MinIO bucket exists
+  await ensureBucket();
 
-  const track2 = await prisma.musicTrack.upsert({
-    where: { title: 'Chill Lo-Fi Beats' },
-    update: {},
-    create: {
-      title: 'Chill Lo-Fi Beats',
-      artist: 'Lo-Fi Vibes',
-      url: 's3://reelforge-music/chill-lofi.mp3',
-      durationSeconds: 180,
-      bpm: 90,
-      mood: 'calm',
-      genre: 'lo-fi',
-      tags: ['lo-fi', 'chill', 'study'],
-      isActive: true,
-    },
-  });
-  console.log(`✓ Music track: ${track2.title}`);
+  // Seed 20 music tracks (4 per mood, distributed across genres)
+  const musicTracks = [
+    // Happy (4 tracks): pop, pop, acoustic, acoustic
+    { title: 'Summer Vibes', artist: 'The Sunshine Band', durationSeconds: 180, bpm: 120, mood: 'happy', genre: 'pop', tags: ['upbeat', 'summer', 'positive'] },
+    { title: 'Golden Hour', artist: 'Bright Melodies', durationSeconds: 195, bpm: 115, mood: 'happy', genre: 'pop', tags: ['upbeat', 'feel-good', 'trending'] },
+    { title: 'Acoustic Sunrise', artist: 'Folk Harmony', durationSeconds: 240, bpm: 100, mood: 'happy', genre: 'acoustic', tags: ['upbeat', 'acoustic', 'peaceful'] },
+    { title: 'Gentle Guitar Days', artist: 'Acoustic Dreams', durationSeconds: 210, bpm: 95, mood: 'happy', genre: 'acoustic', tags: ['happy', 'acoustic', 'relaxing'] },
 
-  const track3 = await prisma.musicTrack.upsert({
-    where: { title: 'Motivational Strings' },
-    update: {},
-    create: {
-      title: 'Motivational Strings',
-      artist: 'Orchestral Dreams',
-      url: 's3://reelforge-music/motivational-strings.mp3',
-      durationSeconds: 150,
-      bpm: 110,
-      mood: 'inspirational',
-      genre: 'orchestral',
-      tags: ['motivational', 'inspirational', 'epic'],
-      isActive: true,
-    },
-  });
-  console.log(`✓ Music track: ${track3.title}`);
+    // Sad (4 tracks): cinematic, cinematic, acoustic, ambient
+    { title: 'Lost in Time', artist: 'Cinematic Waves', durationSeconds: 240, bpm: 70, mood: 'sad', genre: 'cinematic', tags: ['cinematic', 'emotional', 'dramatic'] },
+    { title: 'Rain and Reflections', artist: 'Emotional Strings', durationSeconds: 210, bpm: 65, mood: 'sad', genre: 'cinematic', tags: ['sad', 'emotional', 'introspective'] },
+    { title: 'Melancholy Echoes', artist: 'Acoustic Sadness', durationSeconds: 180, bpm: 60, mood: 'sad', genre: 'acoustic', tags: ['sad', 'acoustic', 'melancholic'] },
+    { title: 'Deep Blue Dreams', artist: 'Ambient Sorrow', durationSeconds: 300, bpm: 55, mood: 'sad', genre: 'ambient', tags: ['sad', 'ambient', 'meditative'] },
 
-  console.log('✅ Database seeded successfully with 8 templates and 3 music tracks!');
+    // Energetic (4 tracks): electronic, hip-hop, pop, hip-hop
+    { title: 'Electric Energy', artist: 'Synth Pulse', durationSeconds: 210, bpm: 135, mood: 'energetic', genre: 'electronic', tags: ['energetic', 'electronic', 'hype'] },
+    { title: 'Beat Drop', artist: 'Hip Hop Masters', durationSeconds: 180, bpm: 95, mood: 'energetic', genre: 'hip-hop', tags: ['energetic', 'hip-hop', 'hype'] },
+    { title: 'High Octane Rush', artist: 'Electric Pop', durationSeconds: 195, bpm: 140, mood: 'energetic', genre: 'pop', tags: ['energetic', 'pop', 'action'] },
+    { title: 'Turbo Flow', artist: 'Hip Hop Beats', durationSeconds: 200, bpm: 100, mood: 'energetic', genre: 'hip-hop', tags: ['energetic', 'hip-hop', 'trendy'] },
+
+    // Calm (4 tracks): ambient, ambient, acoustic, ambient
+    { title: 'Peaceful Waters', artist: 'Ambient Zen', durationSeconds: 300, bpm: 50, mood: 'calm', genre: 'ambient', tags: ['calm', 'ambient', 'relaxing'] },
+    { title: 'Gentle Breeze', artist: 'Serenity Sounds', durationSeconds: 280, bpm: 60, mood: 'calm', genre: 'ambient', tags: ['calm', 'ambient', 'soothing'] },
+    { title: 'Acoustic Tranquility', artist: 'Folk Serenity', durationSeconds: 240, bpm: 75, mood: 'calm', genre: 'acoustic', tags: ['calm', 'acoustic', 'peaceful'] },
+    { title: 'Meditative Spaces', artist: 'Zen Ambient', durationSeconds: 350, bpm: 45, mood: 'calm', genre: 'ambient', tags: ['calm', 'ambient', 'meditation'] },
+
+    // Neutral (4 tracks): electronic, ambient, acoustic, pop
+    { title: 'Neutral Ground', artist: 'Electronic Muse', durationSeconds: 200, bpm: 110, mood: 'neutral', genre: 'electronic', tags: ['neutral', 'electronic', 'background'] },
+    { title: 'Background Vibes', artist: 'Ambient Neutral', durationSeconds: 280, bpm: 70, mood: 'neutral', genre: 'ambient', tags: ['neutral', 'ambient', 'background'] },
+    { title: 'Acoustic Standard', artist: 'Folk Standard', durationSeconds: 210, bpm: 100, mood: 'neutral', genre: 'acoustic', tags: ['neutral', 'acoustic', 'standard'] },
+    { title: 'Pop Standard', artist: 'Pop Vibes', durationSeconds: 180, bpm: 120, mood: 'neutral', genre: 'pop', tags: ['neutral', 'pop', 'standard'] },
+  ];
+
+  console.log('🎵 Seeding 20 music tracks...');
+  for (const trackData of musicTracks) {
+    const track = await prisma.musicTrack.upsert({
+      where: { title: trackData.title },
+      update: {},
+      create: {
+        title: trackData.title,
+        artist: trackData.artist,
+        url: `music/${trackData.title.toLowerCase().replace(/\s+/g, '-')}.mp3`,
+        durationSeconds: trackData.durationSeconds,
+        bpm: trackData.bpm,
+        mood: trackData.mood,
+        genre: trackData.genre,
+        tags: trackData.tags,
+        isActive: true,
+      },
+    });
+
+    // Upload to MinIO
+    await uploadMusicFile(track.id, track.title);
+  }
+
+  console.log('✅ Database seeded successfully with 8 templates and 20 music tracks!');
 }
 
 main()

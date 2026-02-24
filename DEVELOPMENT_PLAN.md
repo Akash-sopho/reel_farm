@@ -13,9 +13,9 @@ Creators pick a template, fill slots (images, text), add music/voiceover, and ex
 | Phase | Goal | Status |
 |---|---|---|
 | 0 | Repo scaffolding, Docker, DB, CI/CD, shared types | ✅ DONE |
-| 1 | Template gallery, slot-fill editor, Remotion preview, MP4 export | 🔄 IN PROGRESS |
-| 1.5 | URL intake pipeline — fetch Instagram/TikTok videos via yt-dlp | ⏳ PENDING |
-| 2 | AI text/image suggestions, music library | 📋 PLANNED |
+| 1 | Template gallery, slot-fill editor, Remotion preview, MP4 export | ✅ DONE |
+| 1.5 | URL intake pipeline — fetch Instagram/TikTok videos via yt-dlp | ✅ DONE |
+| 2 | AI text/image suggestions, music library | 🔄 IN PROGRESS |
 | 3 | Direct publish to Instagram & TikTok, scheduling | 📋 PLANNED |
 | 4 | AI template extraction from video collections | 📋 PLANNED |
 
@@ -83,11 +83,25 @@ P1.5-T01 (Spec) → P1.5-T02 (yt-dlp Service) → P1.5-T03 (API + Queue) → P1.
 | P1.5-T04 | Frontend — Collection Workspace Page | Dev | P1.5-T03 | ✅ DONE |
 | P1.5-T05 | Test — Intake Pipeline | Tester | P1.5-T03 | ✅ DONE |
 
-### Phase 2+ — Planned (IDs reserved)
+### Phase 2 — AI Suggestions + Music Library
+
+| ID | Title | Role | Depends | Status |
+|---|---|---|---|---|
+| P2-T01 | Spec — AI Suggestion API | Planner | P1-T08 | ✅ DONE |
+| P2-T02 | Implement Unified AI Service | Dev | P2-T01 | ✅ DONE |
+| P2-T03 | Implement AI Text + Image Routes | Dev | P2-T02 | ✅ DONE |
+| P2-T04 | Frontend — AI Suggestion Buttons in Editor | Dev | P2-T03 | ✅ DONE |
+| P2-T05 | Spec — Music Library API | Planner | P1-T08 | ✅ DONE |
+| P2-T06 | Seed Music Library (20 tracks) | Dev | P2-T05 | ✅ DONE |
+| P2-T07 | Implement Music Library API | Dev | P2-T05 | ✅ DONE |
+| P2-T08 | Frontend — Music Picker in Editor | Dev | P2-T07 | ✅ DONE |
+| P2-T09 | Test — AI Service Unit Tests | Tester | P2-T03 | ✅ DONE |
+| P2-T10 | Test — Music API Integration Tests | Tester | P2-T07 | ✅ DONE |
+
+### Phase 3+ — Planned (IDs reserved)
 
 | Range | Area |
 |---|---|
-| P2-T01 – P2-T11 | AI suggestions (GPT-4o text, DALL-E images), music library |
 | P3-T01 – P3-T07 | Direct publish to Instagram & TikTok, scheduling |
 | P4-T01 – P4-T07 | AI template extraction from video collections |
 

@@ -5,6 +5,9 @@ import { Project, SlotFill } from '@/types/project';
 import { createDebouncedCallback } from '@/utils/debounce';
 import { VideoPreview } from '@/components/editor/VideoPreview';
 import { ExportModal } from '@/components/editor/ExportModal';
+import { TextSuggestionButton } from '@/components/editor/TextSuggestionButton';
+import { ImageSuggestionButton } from '@/components/editor/ImageSuggestionButton';
+import { MusicPicker } from '@/components/editor/MusicPicker';
 
 interface Scene {
   id: string;
@@ -26,6 +29,8 @@ export const Editor: React.FC = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [renderId, setRenderId] = useState<string | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [showMusicPicker, setShowMusicPicker] = useState(false);
+  const [selectedTrackName, setSelectedTrackName] = useState<string | null>(null);
 
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement }>({});
   const debouncedUpdateRef = useRef<any>(null);
@@ -37,6 +42,48 @@ export const Editor: React.FC = () => {
       debouncedUpdateRef.current?.cancel();
     };
   }, []);
+
+  // Handle music selection
+  const handleSelectMusic = async (track: any) => {
+    if (!project) return;
+
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ musicUrl: track.url }),
+      });
+
+      if (!res.ok) throw new Error('Failed to update music');
+      const updated = await res.json();
+      setProject(updated);
+      setSelectedTrackName(track.title);
+    } catch (err) {
+      console.error('Failed to select music:', err);
+      alert('Failed to select music');
+    }
+  };
+
+  // Handle clear music
+  const handleClearMusic = async () => {
+    if (!project) return;
+
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ musicUrl: null }),
+      });
+
+      if (!res.ok) throw new Error('Failed to clear music');
+      const updated = await res.json();
+      setProject(updated);
+      setSelectedTrackName(null);
+    } catch (err) {
+      console.error('Failed to clear music:', err);
+      alert('Failed to clear music');
+    }
+  };
 
   // Create or load project on mount
   useEffect(() => {
@@ -64,6 +111,15 @@ export const Editor: React.FC = () => {
         if (!projectRes.ok) throw new Error('Failed to create project');
         const projectData = await projectRes.json();
         setProject(projectData);
+
+        // Set selected track name if music is already set
+        if (projectData.musicUrl) {
+          // Try to extract track name from URL (format: music/{id}.mp3)
+          const match = projectData.musicUrl.match(/music\/([^\/]+)\.mp3/);
+          if (match) {
+            setSelectedTrackName(match[1]);
+          }
+        }
 
         // Update URL with projectId
         window.history.replaceState(null, '', `/editor/${templateId}?projectId=${projectData.id}`);
@@ -240,6 +296,23 @@ export const Editor: React.FC = () => {
               Back
             </button>
             <button
+              onClick={() => setShowMusicPicker(true)}
+              className="px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-semibold transition-colors"
+            >
+              {selectedTrackName ? `🎵 ${selectedTrackName}` : '🎵 Add Music'}
+              {selectedTrackName && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClearMusic();
+                  }}
+                  className="ml-2 text-blue-600 hover:text-blue-800 text-sm"
+                >
+                  ×
+                </button>
+              )}
+            </button>
+            <button
               onClick={handleGenerateVideo}
               disabled={project.status !== 'ready'}
               className={`px-6 py-2 rounded-lg font-semibold transition-colors ${
@@ -327,22 +400,29 @@ export const Editor: React.FC = () => {
                       </label>
 
                       {isImage ? (
-                        <div>
-                          <button
-                            onClick={() => triggerFileInput(slot.id)}
-                            disabled={uploading === slot.id}
-                            className={`w-full py-2 px-3 border-2 border-dashed rounded-lg font-medium transition-colors ${
-                              isFilled
-                                ? 'border-green-400 bg-green-50 text-green-700'
-                                : 'border-gray-300 bg-gray-50 text-gray-700 hover:border-blue-400'
-                            } ${uploading === slot.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                          >
-                            {uploading === slot.id
-                              ? 'Uploading...'
-                              : isFilled
-                                ? '✓ Change Image'
-                                : '+ Upload Image'}
-                          </button>
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => triggerFileInput(slot.id)}
+                              disabled={uploading === slot.id}
+                              className={`flex-1 py-2 px-3 border-2 border-dashed rounded-lg font-medium transition-colors ${
+                                isFilled
+                                  ? 'border-green-400 bg-green-50 text-green-700'
+                                  : 'border-gray-300 bg-gray-50 text-gray-700 hover:border-blue-400'
+                              } ${uploading === slot.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                            >
+                              {uploading === slot.id
+                                ? 'Uploading...'
+                                : isFilled
+                                  ? '✓ Change Image'
+                                  : '+ Upload Image'}
+                            </button>
+                            <ImageSuggestionButton
+                              projectId={project.id}
+                              slotId={slot.id}
+                              onImageSelect={(imageUrl) => handleSlotChange(slot.id, imageUrl)}
+                            />
+                          </div>
                           <input
                             ref={(ref) => {
                               if (ref) fileInputRefs.current[slot.id] = ref;
@@ -363,20 +443,28 @@ export const Editor: React.FC = () => {
                           )}
                         </div>
                       ) : isText ? (
-                        <textarea
-                          value={fill?.value || ''}
-                          onChange={(e) => handleSlotChange(slot.id, e.target.value)}
-                          onBlur={() => {
-                            // Ensure update is sent even if no more changes
-                            if (debouncedUpdateRef.current) {
-                              debouncedUpdateRef.current.call(project.slotFills);
-                            }
-                          }}
-                          maxLength={slot.constraints?.maxLength || 500}
-                          placeholder={slot.placeholder || 'Enter text'}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                          rows={3}
-                        />
+                        <div className="space-y-2">
+                          <textarea
+                            value={fill?.value || ''}
+                            onChange={(e) => handleSlotChange(slot.id, e.target.value)}
+                            onBlur={() => {
+                              // Ensure update is sent even if no more changes
+                              if (debouncedUpdateRef.current) {
+                                debouncedUpdateRef.current.call(project.slotFills);
+                              }
+                            }}
+                            maxLength={slot.constraints?.maxLength || 500}
+                            placeholder={slot.placeholder || 'Enter text'}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                            rows={3}
+                          />
+                          <TextSuggestionButton
+                            projectId={project.id}
+                            slotId={slot.id}
+                            onSuggestionSelect={(suggestion) => handleSlotChange(slot.id, suggestion)}
+                            hint={slot.description}
+                          />
+                        </div>
                       ) : null}
 
                       {slot.constraints?.maxLength && isText && (
@@ -420,6 +508,15 @@ export const Editor: React.FC = () => {
             </button>
           </div>
         </div>
+      )}
+
+      {/* Music Picker Modal */}
+      {showMusicPicker && project && (
+        <MusicPicker
+          projectId={project.id}
+          onSelectTrack={handleSelectMusic}
+          onClose={() => setShowMusicPicker(false)}
+        />
       )}
 
       {/* Export Modal */}
