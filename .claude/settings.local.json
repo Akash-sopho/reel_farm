@@ -32,7 +32,11 @@
       "Bash(cd C:/Users/goyal/reelFarm/reel_farm/src/backend && npm run db:seed 2>&1)",
       "Bash(echo ✓ TypeScript check passed:*)",
       "Bash(cd C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\backend:*)",
-      "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\backend\" && npx tsc --noEmit --skipLibCheck 2>&1)"
+      "Bash(cd \"C:\\\\Users\\\\goyal\\\\reelFarm\\\\reel_farm\\\\src\\\\backend\" && npx tsc --noEmit --skipLibCheck 2>&1)",
+      "Bash(docker ps:*)",
+      "Bash(docker compose:*)",
+      "Bash(sleep 8:*)",
+      "Bash(curl:*)"
     ]
   }
 }

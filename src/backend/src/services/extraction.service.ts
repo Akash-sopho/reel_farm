@@ -91,7 +91,7 @@ const openai = new OpenAI({
 const ajv = new Ajv();
 
 function loadTemplateSchema() {
-  const schemaPath = path.join(__dirname, '../../../specs/schemas/template-schema.json');
+  const schemaPath = path.join(__dirname, '../../../../specs/schemas/template-schema.json');
   const schemaContent = fs.readFileSync(schemaPath, 'utf-8');
   return JSON.parse(schemaContent);
 }
