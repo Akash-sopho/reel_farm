@@ -10,6 +10,8 @@ interface CollectedVideo {
   tags: string[];
   status: 'PENDING' | 'FETCHING' | 'READY' | 'FAILED';
   errorMessage?: string;
+  analysisStatus?: 'UNANALYZED' | 'ANALYZING' | 'ANALYZED' | 'FAILED';
+  analysisError?: string;
   createdAt: string;
 }
 
@@ -17,8 +19,12 @@ interface CollectionGridProps {
   videos: CollectedVideo[];
   selectedVideoId?: string;
   onSelectVideo: (video: CollectedVideo) => void;
+  onAnalyze?: (video: CollectedVideo) => Promise<void>;
+  onExtract?: (video: CollectedVideo) => Promise<void>;
   getStatusColor: (status: string) => string;
   getStatusText: (status: string) => string;
+  analyzingVideoId?: string;
+  extractingVideoId?: string;
 }
 
 /**
@@ -30,8 +36,12 @@ export const CollectionGrid = ({
   videos,
   selectedVideoId,
   onSelectVideo,
+  onAnalyze,
+  onExtract,
   getStatusColor,
   getStatusText,
+  analyzingVideoId,
+  extractingVideoId,
 }: CollectionGridProps) => {
   return (
     <div>
@@ -124,6 +134,54 @@ export const CollectionGrid = ({
                 <p className="text-xs text-red-600 mt-2 truncate">
                   Error: {video.errorMessage}
                 </p>
+              )}
+
+              {/* Analysis status */}
+              {video.status === 'READY' && (
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <span className="text-xs font-semibold text-gray-600">
+                        {video.analysisStatus === 'ANALYZING' ? 'Analyzing...' :
+                         video.analysisStatus === 'ANALYZED' ? 'Analyzed' :
+                         video.analysisStatus === 'FAILED' ? 'Analysis Failed' :
+                         'Not Analyzed'}
+                      </span>
+                    </div>
+                    {video.analysisStatus === 'ANALYZING' && (
+                      <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                    )}
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-1">
+                    {video.analysisStatus !== 'ANALYZING' && video.analysisStatus !== 'ANALYZED' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAnalyze?.(video);
+                        }}
+                        disabled={analyzingVideoId === video.id}
+                        className="flex-1 px-2 py-1 bg-blue-500 text-white text-xs font-semibold rounded hover:bg-blue-600 disabled:bg-blue-300 transition-colors"
+                      >
+                        {analyzingVideoId === video.id ? 'Analyzing...' : 'Analyze'}
+                      </button>
+                    )}
+
+                    {video.analysisStatus === 'ANALYZED' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onExtract?.(video);
+                        }}
+                        disabled={extractingVideoId === video.id}
+                        className="flex-1 px-2 py-1 bg-green-500 text-white text-xs font-semibold rounded hover:bg-green-600 disabled:bg-green-300 transition-colors"
+                      >
+                        {extractingVideoId === video.id ? 'Extracting...' : 'Extract'}
+                      </button>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           </div>

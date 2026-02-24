@@ -41,6 +41,9 @@ export const Collect = () => {
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [analyzingVideoId, setAnalyzingVideoId] = useState<string | null>(null);
+  const [extractingVideoId, setExtractingVideoId] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Poll for collection list every 2.5 seconds
   useEffect(() => {
@@ -129,6 +132,105 @@ export const Collect = () => {
     }
   };
 
+  const handleAnalyze = async (video: CollectedVideo) => {
+    try {
+      setAnalyzingVideoId(video.id);
+      setError(null);
+
+      // Start analysis job
+      const startRes = await fetch(`/api/intake/videos/${video.id}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!startRes.ok) {
+        const errorData = await startRes.json();
+        throw new Error(errorData.error || 'Failed to start analysis');
+      }
+
+      // Poll for completion
+      let isComplete = false;
+      let attempts = 0;
+      const maxAttempts = 120; // 5 minutes with 2.5s polling interval
+
+      while (!isComplete && attempts < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        attempts++;
+
+        const statusRes = await fetch(`/api/intake/videos/${video.id}/analysis`);
+        if (!statusRes.ok) throw new Error('Failed to check analysis status');
+
+        const statusData = await statusRes.json();
+
+        if (statusData.status === 'ANALYZED') {
+          isComplete = true;
+
+          // Update video in list
+          setVideos((prev) =>
+            prev.map((v) =>
+              v.id === video.id
+                ? { ...v, analysisStatus: 'ANALYZED' }
+                : v
+            )
+          );
+
+          if (selectedVideo?.id === video.id) {
+            setSelectedVideo((prev) =>
+              prev ? { ...prev, analysisStatus: 'ANALYZED' } : null
+            );
+          }
+
+          setSuccessMessage('Analysis complete!');
+        } else if (statusData.status === 'FAILED') {
+          throw new Error(statusData.error || 'Analysis failed');
+        }
+      }
+
+      if (!isComplete) {
+        throw new Error('Analysis timeout');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to analyze video');
+      setVideos((prev) =>
+        prev.map((v) =>
+          v.id === video.id ? { ...v, analysisStatus: 'FAILED' } : v
+        )
+      );
+    } finally {
+      setAnalyzingVideoId(null);
+    }
+  };
+
+  const handleExtract = async (video: CollectedVideo) => {
+    try {
+      setExtractingVideoId(video.id);
+      setError(null);
+
+      const res = await fetch('/api/templates/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          collectedVideoId: video.id,
+          name: video.title || `Template from ${video.platform}`,
+          category: 'extracted',
+          description: `Extracted from ${video.platform} video`,
+        }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to extract template');
+      }
+
+      const data = await res.json();
+      setSuccessMessage(`Template created! (ID: ${data.templateId})`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to extract template');
+    } finally {
+      setExtractingVideoId(null);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'PENDING':
@@ -162,11 +264,19 @@ export const Collect = () => {
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="px-6 py-4">
-          <h1 className="text-2xl font-bold text-gray-900">Video Collection</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Collect Instagram and TikTok videos for trend analysis
-          </p>
+        <div className="px-6 py-4 flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Video Collection</h1>
+            <p className="text-sm text-gray-600 mt-1">
+              Collect Instagram and TikTok videos for trend analysis
+            </p>
+          </div>
+          <a
+            href="/templates/drafts"
+            className="px-4 py-2 bg-purple-500 text-white font-semibold rounded-lg hover:bg-purple-600 transition-colors"
+          >
+            View Drafts
+          </a>
         </div>
       </div>
 
@@ -199,6 +309,35 @@ export const Collect = () => {
         </div>
       )}
 
+      {/* Success banner */}
+      {successMessage && (
+        <div className="bg-green-50 border-b border-green-200 p-4">
+          <div className="flex items-start gap-3">
+            <svg
+              className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <div className="flex-1">
+              <p className="text-green-800 font-semibold">Success</p>
+              <p className="text-green-700 text-sm mt-1">{successMessage}</p>
+            </div>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="text-green-400 hover:text-green-600"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Layout: Three Panels */}
       <div className="flex h-[calc(100vh-180px)]">
         {/* Left Panel: URL Input */}
@@ -212,8 +351,12 @@ export const Collect = () => {
             videos={videos}
             selectedVideoId={selectedVideo?.id}
             onSelectVideo={setSelectedVideo}
+            onAnalyze={handleAnalyze}
+            onExtract={handleExtract}
             getStatusColor={getStatusColor}
             getStatusText={getStatusText}
+            analyzingVideoId={analyzingVideoId || undefined}
+            extractingVideoId={extractingVideoId || undefined}
           />
           {videos.length === 0 && (
             <div className="flex items-center justify-center h-full">

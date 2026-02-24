@@ -12,14 +12,20 @@ import {
   UpdateCollectedVideoSchema,
 } from '../validation/intake';
 import { HttpError } from '../middleware/error-handler';
+import prisma from '../lib/prisma';
 
 const router = Router();
 
-// Middleware to inject queue
+// Middleware to inject queues
 let intakeQueue: Queue;
+let analysisQueue: Queue;
 
 export function setIntakeQueue(queue: Queue) {
   intakeQueue = queue;
+}
+
+export function setAnalysisQueue(queue: Queue) {
+  analysisQueue = queue;
 }
 
 /**
@@ -128,6 +134,101 @@ router.get('/videos/:id', async (req: Request, res: Response, next: NextFunction
     const result = await getCollectedVideo(req.params.id, userId);
 
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * POST /api/intake/videos/:id/analyze
+ * Enqueue a video analysis job
+ */
+router.post('/videos/:id/analyze', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!analysisQueue) {
+      throw new Error('Analysis queue not initialized');
+    }
+
+    const { id: videoId } = req.params;
+
+    // Verify video exists and is ready
+    const video = await prisma.collectedVideo.findUnique({
+      where: { id: videoId },
+    });
+
+    if (!video) {
+      throw new HttpError(404, 'Video not found', 'VIDEO_NOT_FOUND', { videoId });
+    }
+
+    if (video.status !== 'READY') {
+      throw new HttpError(
+        400,
+        'Video has not finished downloading',
+        'VIDEO_NOT_READY',
+        { videoId, status: video.status }
+      );
+    }
+
+    if ((video as any).analysisStatus === 'ANALYZING') {
+      throw new HttpError(
+        409,
+        'Analysis is already in progress for this video',
+        'ANALYSIS_ALREADY_IN_PROGRESS',
+        { videoId }
+      );
+    }
+
+    // Enqueue analysis job
+    const job = await analysisQueue.add(
+      'video-analysis',
+      { videoId },
+      {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 5000, // 5 seconds initial
+        },
+        removeOnComplete: false,
+        removeOnFail: false,
+      }
+    );
+
+    res.status(202).json({
+      videoId,
+      status: 'ANALYZING',
+      jobId: job.id,
+      startedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/intake/videos/:id/analysis
+ * Get the analysis result for a video
+ */
+router.get('/videos/:id/analysis', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { id: videoId } = req.params;
+
+    // Get video with analysis data
+    const video = await prisma.collectedVideo.findUnique({
+      where: { id: videoId },
+    });
+
+    if (!video) {
+      throw new HttpError(404, 'Video not found', 'VIDEO_NOT_FOUND', { videoId });
+    }
+
+    // Return analysis status and result if available
+    res.json({
+      videoId,
+      status: (video as any).analysisStatus,
+      completedAt: (video as any).analysisResult ? new Date().toISOString() : null,
+      analysis: (video as any).analysisResult,
+      error: (video as any).analysisError,
+    });
   } catch (error) {
     next(error);
   }

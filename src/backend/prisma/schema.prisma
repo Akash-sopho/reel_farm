@@ -20,6 +20,39 @@ model User {
   // Relations
   projects        Project[]
   collectedVideos CollectedVideo[]
+  socialAccounts  SocialAccount[]
+}
+
+model SocialAccount {
+  id        String   @id @default(cuid())
+  userId    String
+  platform  String   // 'instagram' | 'tiktok'
+
+  // Encrypted token storage (AES-256-GCM)
+  encryptedAccessToken  String
+  encryptedRefreshToken String?
+
+  // Token metadata
+  tokenExpiresAt DateTime?
+
+  // Platform identifiers
+  platformUserId   String
+  platformUsername String
+
+  // Account status
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publishLogs PublishLog[]
+
+  // Unique constraint: one account per platform per user
+  @@unique([userId, platform])
+  @@index([userId])
+  @@index([platform])
 }
 
 model Template {
@@ -35,6 +68,14 @@ model Template {
   isPublished      Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  // Extraction fields
+  extractedFromVideoId String?       // ID of CollectedVideo this was extracted from
+  extractionStatus     String?       // EXTRACTING | COMPLETED | FAILED | REJECTED
+  extractionError      String?
+  extractionQuality    Json?         // { score, issues }
+  rejectionReason      String?
+  publishedAt          DateTime?
 
   // Relations
   projects Project[]
@@ -108,12 +149,18 @@ model CollectedVideo {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Analysis fields
+  analysisStatus String   @default("UNANALYZED") // UNANALYZED | ANALYZING | ANALYZED | FAILED
+  analysisResult Json?                           // VideoAnalysis JSON
+  analysisError  String?
+
   // Relations
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([platform])
   @@index([status])
+  @@index([analysisStatus])
 }
 
 model MusicTrack {
@@ -147,23 +194,28 @@ model VoiceoverClip {
 }
 
 model PublishLog {
-  id            String   @id @default(cuid())
-  projectId     String
-  renderId      String
-  platform      String   // 'instagram' | 'tiktok'
-  status        String   @default("pending") // 'pending' | 'published' | 'failed' | 'scheduled'
-  externalId    String?
-  errorMessage  String?
-  scheduledAt   DateTime?
-  publishedAt   DateTime?
-  createdAt     DateTime @default(now())
+  id               String   @id @default(cuid())
+  projectId        String
+  renderId         String
+  socialAccountId  String
+  platform         String   // 'instagram' | 'tiktok'
+  status           String   @default("PENDING") // 'PENDING' | 'UPLOADING' | 'PUBLISHED' | 'FAILED'
+  externalId       String?
+  errorCode        String?
+  errorMessage     String?
+  scheduledAt      DateTime?
+  publishedAt      DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relations
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  render  Render  @relation(fields: [renderId], references: [id], onDelete: Cascade)
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  render        Render         @relation(fields: [renderId], references: [id], onDelete: Cascade)
+  socialAccount SocialAccount  @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([renderId])
+  @@index([socialAccountId])
   @@index([platform])
   @@index([status])
 }

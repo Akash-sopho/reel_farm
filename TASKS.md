@@ -8,11 +8,14 @@
 
 ## Active Queue — immediately startable
 
-*Phase 3 Complete!* All publishing tasks done (P3-T01 through P3-T07). Awaiting Phase 4 task definitions.
+**Phase 4 is complete!** All template extraction pipeline tasks (P4-T01 through P4-T07) are ✅ DONE.
+
+Next phases will be added as they begin. See `DEVELOPMENT_PLAN.md` for full roadmap.
 
 ---
 
-## Upcoming — blocked
+## Upcoming — blocked (unlocks as new phases begin)
 
 | ID | Title | Blocked by |
 |---|---|---|
+| — | No active tasks; Phase 4 complete | — |

@@ -45,3 +45,17 @@ export const UpdateTemplateSchema = z.object({
 });
 
 export type UpdateTemplateRequest = z.infer<typeof UpdateTemplateSchema>;
+
+/**
+ * Validator for POST /api/templates/batch-extract body
+ */
+export const BatchExtractTemplateSchema = z.object({
+  collectedVideoIds: z.array(z.string().cuid()).min(1).max(100),
+  autoSeedThreshold: z.number().min(0).max(1).optional().default(0.75),
+  templateDefaults: z.object({
+    category: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+  }).optional(),
+});
+
+export type BatchExtractTemplateRequest = z.infer<typeof BatchExtractTemplateSchema>;

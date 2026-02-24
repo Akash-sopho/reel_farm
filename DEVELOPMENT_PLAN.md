@@ -17,7 +17,7 @@ Creators pick a template, fill slots (images, text), add music/voiceover, and ex
 | 1.5 | URL intake pipeline — fetch Instagram/TikTok videos via yt-dlp | ✅ DONE |
 | 2 | AI text/image suggestions, music library | ✅ DONE |
 | 3 | Direct publish to Instagram & TikTok, scheduling | ✅ DONE |
-| 4 | AI template extraction from video collections | 📋 PLANNED |
+| 4 | AI template extraction from video collections | ✅ DONE |
 
 ---
 
@@ -110,11 +110,17 @@ P1.5-T01 (Spec) → P1.5-T02 (yt-dlp Service) → P1.5-T03 (API + Queue) → P1.
 | P3-T06 | Test — Publish Service Unit Tests | Tester | P3-T04 | ✅ DONE |
 | P3-T07 | Test — Publishing Integration Tests | Tester | P3-T04 | ✅ DONE |
 
-### Phase 4 — Planned (IDs reserved)
+### Phase 4 — AI Template Extraction
 
-| Range | Area |
-|---|---|
-| P4-T01 – P4-T07 | AI template extraction from video collections |
+| ID | Title | Role | Depends | Status |
+|---|---|---|---|---|
+| P4-T01 | Spec — Template Extraction Pipeline | Planner | P1.5-T03, P1-T02 | ✅ DONE |
+| P4-T02 | Implement Video Analysis Service (frames + OCR) | Dev | P4-T01 | ✅ DONE |
+| P4-T03 | Implement AI Extraction Service (GPT-4o Vision → TemplateSchema) | Dev | P4-T02 | ✅ DONE |
+| P4-T04 | Implement Extraction API Routes + BullMQ Worker | Dev | P4-T03 | ✅ DONE |
+| P4-T05 | Frontend — Analyze & Extract UI in Collection Workspace | Dev | P4-T04 | ✅ DONE |
+| P4-T06 | Implement Batch Extraction + Quality Scoring | Dev | P4-T03 | ✅ DONE |
+| P4-T07 | Test — Template Extraction Pipeline | Tester | P4-T06 | ✅ DONE |
 
 ---
 

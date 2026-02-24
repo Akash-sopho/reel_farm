@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { VideoPreview } from './VideoPreview';
+import { ShareModal } from '../publish';
 import type { TemplateSchema, SlotFill } from '@/types/template';
 
 export interface ExportModalProps {
@@ -48,6 +49,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Poll render status
   useEffect(() => {
@@ -284,37 +286,68 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           </button>
 
           {renderStatus?.status === 'DONE' && (
-            <button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {downloading ? (
-                <>
-                  <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  Downloading...
-                </>
-              ) : (
-                <>
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                    />
-                  </svg>
-                  Download MP4
-                </>
-              )}
-            </button>
+            <>
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors flex items-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8.684 13.342C9.589 12.938 10 12.016 10 11c0-1.105-.895-2-2-2s-2 .895-2 2c0 1.016.411 1.938 1.316 2.342m0 0a9 9 0 019.632-3.74m0 0a9.773 9.773 0 012.109 2.109m0 0a9 9 0 01-2.109 2.109m-1.316-2.342C14.411 12.938 15 12.016 15 11c0-1.105-.895-2-2-2s-2 .895-2 2c0 1.016.411 1.938 1.316 2.342m0 0a9.773 9.773 0 012.109-2.109M19 13h-6"
+                  />
+                </svg>
+                Share to Social
+              </button>
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {downloading ? (
+                  <>
+                    <div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                      />
+                    </svg>
+                    Download MP4
+                  </>
+                )}
+              </button>
+            </>
           )}
         </div>
+
+        {/* Share Modal */}
+        {showShareModal && renderStatus?.status === 'DONE' && (
+          <ShareModal
+            projectId={projectId}
+            renderId={renderId}
+            projectName={projectName}
+            onClose={() => setShowShareModal(false)}
+          />
+        )}
       </div>
     </div>
   );

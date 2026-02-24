@@ -1,0 +1,265 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { createDebouncedCallback } from '@/utils/debounce';
+import { VideoPreview } from '@/components/editor/VideoPreview';
+import { ExportModal } from '@/components/editor/ExportModal';
+import { TextSuggestionButton } from '@/components/editor/TextSuggestionButton';
+import { ImageSuggestionButton } from '@/components/editor/ImageSuggestionButton';
+import { MusicPicker } from '@/components/editor/MusicPicker';
+export const Editor = () => {
+    const { templateId } = useParams();
+    const navigate = useNavigate();
+    // State
+    const [project, setProject] = useState(null);
+    const [template, setTemplate] = useState(null);
+    const [activeSceneIndex, setActiveSceneIndex] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [uploading, setUploading] = useState(null);
+    const [showExportModal, setShowExportModal] = useState(false);
+    const [renderId, setRenderId] = useState(null);
+    const [renderError, setRenderError] = useState(null);
+    const [showMusicPicker, setShowMusicPicker] = useState(false);
+    const [selectedTrackName, setSelectedTrackName] = useState(null);
+    const fileInputRefs = useRef({});
+    const debouncedUpdateRef = useRef(null);
+    // Initialize debounced update function
+    useEffect(() => {
+        debouncedUpdateRef.current = createDebouncedCallback(updateProjectSlots, 500);
+        return () => {
+            debouncedUpdateRef.current?.cancel();
+        };
+    }, []);
+    // Handle music selection
+    const handleSelectMusic = async (track) => {
+        if (!project)
+            return;
+        try {
+            const res = await fetch(`/api/projects/${project.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ musicUrl: track.url }),
+            });
+            if (!res.ok)
+                throw new Error('Failed to update music');
+            const updated = await res.json();
+            setProject(updated);
+            setSelectedTrackName(track.title);
+        }
+        catch (err) {
+            console.error('Failed to select music:', err);
+            alert('Failed to select music');
+        }
+    };
+    // Handle clear music
+    const handleClearMusic = async () => {
+        if (!project)
+            return;
+        try {
+            const res = await fetch(`/api/projects/${project.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ musicUrl: null }),
+            });
+            if (!res.ok)
+                throw new Error('Failed to clear music');
+            const updated = await res.json();
+            setProject(updated);
+            setSelectedTrackName(null);
+        }
+        catch (err) {
+            console.error('Failed to clear music:', err);
+            alert('Failed to clear music');
+        }
+    };
+    // Create or load project on mount
+    useEffect(() => {
+        const initializeProject = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                // Fetch template first
+                const templateRes = await fetch(`/api/templates/${templateId}`);
+                if (!templateRes.ok)
+                    throw new Error('Template not found');
+                const templateData = await templateRes.json();
+                setTemplate(templateData);
+                // Create or get project - for now we create a new one
+                const projectRes = await fetch('/api/projects', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        templateId,
+                        name: `${templateData.name} - ${new Date().toLocaleString()}`,
+                    }),
+                });
+                if (!projectRes.ok)
+                    throw new Error('Failed to create project');
+                const projectData = await projectRes.json();
+                setProject(projectData);
+                // Set selected track name if music is already set
+                if (projectData.musicUrl) {
+                    // Try to extract track name from URL (format: music/{id}.mp3)
+                    const match = projectData.musicUrl.match(/music\/([^\/]+)\.mp3/);
+                    if (match) {
+                        setSelectedTrackName(match[1]);
+                    }
+                }
+                // Update URL with projectId
+                window.history.replaceState(null, '', `/editor/${templateId}?projectId=${projectData.id}`);
+            }
+            catch (err) {
+                setError(err instanceof Error ? err.message : 'Failed to initialize editor');
+            }
+            finally {
+                setLoading(false);
+            }
+        };
+        if (templateId) {
+            initializeProject();
+        }
+    }, [templateId]);
+    // Update project slots via API (debounced)
+    async function updateProjectSlots(slotFills) {
+        if (!project)
+            return;
+        try {
+            const res = await fetch(`/api/projects/${project.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slotFills }),
+            });
+            if (!res.ok)
+                throw new Error('Failed to update project');
+            const updated = await res.json();
+            setProject(updated);
+        }
+        catch (err) {
+            console.error('Failed to update slots:', err);
+        }
+    }
+    // Handle slot fill change
+    const handleSlotChange = (slotId, value) => {
+        if (!project)
+            return;
+        const updatedFills = project.slotFills.filter((f) => f.slotId !== slotId);
+        const slot = template?.schema.slots.find((s) => s.id === slotId);
+        if (slot && value.trim()) {
+            updatedFills.push({
+                slotId,
+                type: slot.type,
+                value,
+            });
+        }
+        setProject({ ...project, slotFills: updatedFills });
+        debouncedUpdateRef.current?.call(updatedFills);
+    };
+    // Handle file upload
+    const handleFileUpload = async (slotId, file) => {
+        if (!file)
+            return;
+        try {
+            setUploading(slotId);
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch('/api/media/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            if (!res.ok)
+                throw new Error('Failed to upload file');
+            const { url } = await res.json();
+            // Update slot with image URL
+            handleSlotChange(slotId, url);
+        }
+        catch (err) {
+            console.error('Upload error:', err);
+            alert('Failed to upload file');
+        }
+        finally {
+            setUploading(null);
+        }
+    };
+    // Trigger file input
+    const triggerFileInput = (slotId) => {
+        fileInputRefs.current[slotId]?.click();
+    };
+    // Generate video (trigger render)
+    const handleGenerateVideo = async () => {
+        if (!project || project.status !== 'ready') {
+            setRenderError('Project must be ready to render');
+            return;
+        }
+        try {
+            setRenderError(null);
+            const res = await fetch(`/api/projects/${project.id}/render`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({}),
+            });
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Failed to start render');
+            }
+            const renderData = await res.json();
+            setRenderId(renderData.id);
+            setShowExportModal(true);
+        }
+        catch (err) {
+            setRenderError(err instanceof Error ? err.message : 'Failed to start render');
+        }
+    };
+    if (loading) {
+        return (_jsx("div", { className: "min-h-screen bg-gray-50 flex items-center justify-center", children: _jsxs("div", { className: "text-center", children: [_jsx("div", { className: "inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4" }), _jsx("p", { className: "text-gray-600", children: "Loading editor..." })] }) }));
+    }
+    if (error || !project || !template) {
+        return (_jsx("div", { className: "min-h-screen bg-gray-50 flex items-center justify-center", children: _jsxs("div", { className: "bg-white rounded-lg shadow p-8 max-w-md", children: [_jsx("h2", { className: "text-xl font-bold text-red-600 mb-2", children: "Error" }), _jsx("p", { className: "text-gray-700 mb-4", children: error || 'Failed to load editor' }), _jsx("button", { onClick: () => navigate('/templates'), className: "w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg", children: "Back to Templates" })] }) }));
+    }
+    const scenes = template.schema.scenes || [];
+    const activeScene = scenes[activeSceneIndex];
+    const sceneSlots = activeScene
+        ? template.schema.slots.filter((slot) => {
+            // Check if slot is used in this scene
+            return activeScene.components.some((comp) => Object.values(comp.slotBindings || {}).includes(slot.id));
+        })
+        : [];
+    return (_jsxs("div", { className: "min-h-screen bg-gray-100", children: [_jsx("div", { className: "bg-white shadow-sm border-b border-gray-200", children: _jsxs("div", { className: "px-6 py-4 flex items-center justify-between", children: [_jsxs("div", { children: [_jsx("h1", { className: "text-2xl font-bold text-gray-900", children: template.name }), _jsxs("p", { className: "text-sm text-gray-600 mt-1", children: ["Filled slots: ", project.filledSlots, " / ", project.requiredSlots] })] }), _jsxs("div", { className: "flex items-center gap-4", children: [_jsx("button", { onClick: () => navigate('/templates'), className: "px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-semibold transition-colors", children: "Back" }), _jsxs("button", { onClick: () => setShowMusicPicker(true), className: "px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg font-semibold transition-colors", children: [selectedTrackName ? `🎵 ${selectedTrackName}` : '🎵 Add Music', selectedTrackName && (_jsx("button", { onClick: (e) => {
+                                                e.stopPropagation();
+                                                handleClearMusic();
+                                            }, className: "ml-2 text-blue-600 hover:text-blue-800 text-sm", children: "\u00D7" }))] }), _jsx("button", { onClick: handleGenerateVideo, disabled: project.status !== 'ready', className: `px-6 py-2 rounded-lg font-semibold transition-colors ${project.status === 'ready'
+                                        ? 'bg-green-600 hover:bg-green-700 text-white cursor-pointer'
+                                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`, children: "Generate Video" })] })] }) }), _jsxs("div", { className: "flex h-[calc(100vh-100px)]", children: [_jsx("div", { className: "w-[250px] bg-white border-r border-gray-200 overflow-y-auto", children: _jsxs("div", { className: "p-4", children: [_jsx("h2", { className: "text-lg font-bold text-gray-900 mb-4", children: "Scenes" }), _jsx("div", { className: "space-y-2", children: scenes.map((scene, idx) => (_jsx("button", { onClick: () => setActiveSceneIndex(idx), className: `w-full text-left px-3 py-2 rounded-lg font-medium transition-colors ${activeSceneIndex === idx
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`, children: _jsxs("div", { className: "flex items-center justify-between", children: [_jsxs("span", { children: ["Scene ", idx + 1] }), _jsx("div", { className: "flex gap-1", children: sceneSlots.slice(0, 3).map((slot) => {
+                                                        const filled = project.slotFills.some((f) => f.slotId === slot.id && f.value);
+                                                        return (_jsx("div", { className: `w-2 h-2 rounded-full ${filled ? 'bg-green-400' : 'bg-gray-300'}` }, slot.id));
+                                                    }) })] }) }, scene.id))) })] }) }), _jsx("div", { className: "flex-1 bg-gray-50 p-8", children: _jsx(VideoPreview, { template: template.schema, slotFills: project.slotFills, musicUrl: project.musicUrl || undefined }) }), _jsx("div", { className: "w-[320px] bg-white border-l border-gray-200 overflow-y-auto", children: _jsxs("div", { className: "p-4", children: [_jsx("h2", { className: "text-lg font-bold text-gray-900 mb-4", children: "Edit Slots" }), sceneSlots.length === 0 ? (_jsx("p", { className: "text-gray-500 text-sm", children: "No slots in this scene" })) : (_jsx("div", { className: "space-y-4", children: sceneSlots.map((slot) => {
+                                        const fill = project.slotFills.find((f) => f.slotId === slot.id);
+                                        const isFilled = fill && fill.value;
+                                        const isImage = slot.type === 'image';
+                                        const isText = slot.type === 'text';
+                                        return (_jsxs("div", { className: "border border-gray-200 rounded-lg p-3", children: [_jsxs("label", { className: "block text-sm font-semibold text-gray-700 mb-2", children: [slot.label, slot.required && _jsx("span", { className: "text-red-500", children: " *" })] }), isImage ? (_jsxs("div", { className: "space-y-2", children: [_jsxs("div", { className: "flex gap-2", children: [_jsx("button", { onClick: () => triggerFileInput(slot.id), disabled: uploading === slot.id, className: `flex-1 py-2 px-3 border-2 border-dashed rounded-lg font-medium transition-colors ${isFilled
+                                                                        ? 'border-green-400 bg-green-50 text-green-700'
+                                                                        : 'border-gray-300 bg-gray-50 text-gray-700 hover:border-blue-400'} ${uploading === slot.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`, children: uploading === slot.id
+                                                                        ? 'Uploading...'
+                                                                        : isFilled
+                                                                            ? '✓ Change Image'
+                                                                            : '+ Upload Image' }), _jsx(ImageSuggestionButton, { projectId: project.id, slotId: slot.id, onImageSelect: (imageUrl) => handleSlotChange(slot.id, imageUrl) })] }), _jsx("input", { ref: (ref) => {
+                                                                if (ref)
+                                                                    fileInputRefs.current[slot.id] = ref;
+                                                            }, type: "file", accept: "image/*", onChange: (e) => {
+                                                                if (e.target.files?.[0]) {
+                                                                    handleFileUpload(slot.id, e.target.files[0]);
+                                                                }
+                                                            }, className: "hidden" }), isFilled && (_jsx("p", { className: "text-xs text-gray-600 mt-2 truncate", children: "\u2713 Uploaded" }))] })) : isText ? (_jsxs("div", { className: "space-y-2", children: [_jsx("textarea", { value: fill?.value || '', onChange: (e) => handleSlotChange(slot.id, e.target.value), onBlur: () => {
+                                                                // Ensure update is sent even if no more changes
+                                                                if (debouncedUpdateRef.current) {
+                                                                    debouncedUpdateRef.current.call(project.slotFills);
+                                                                }
+                                                            }, maxLength: slot.constraints?.maxLength || 500, placeholder: slot.placeholder || 'Enter text', className: "w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none", rows: 3 }), _jsx(TextSuggestionButton, { projectId: project.id, slotId: slot.id, onSuggestionSelect: (suggestion) => handleSlotChange(slot.id, suggestion), hint: slot.description })] })) : null, slot.constraints?.maxLength && isText && (_jsxs("p", { className: "text-xs text-gray-500 mt-1", children: [(fill?.value || '').length, " / ", slot.constraints.maxLength] }))] }, slot.id));
+                                    }) }))] }) })] }), renderError && (_jsx("div", { className: "fixed bottom-4 right-4 bg-red-500 text-white px-4 py-3 rounded-lg shadow-lg max-w-md", children: _jsxs("div", { className: "flex items-start gap-3", children: [_jsx("svg", { className: "w-5 h-5 flex-shrink-0 mt-0.5", fill: "currentColor", viewBox: "0 0 20 20", children: _jsx("path", { fillRule: "evenodd", d: "M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z", clipRule: "evenodd" }) }), _jsxs("div", { className: "flex-1", children: [_jsx("p", { className: "font-semibold", children: "Render Error" }), _jsx("p", { className: "text-sm mt-1", children: renderError })] }), _jsx("button", { onClick: () => setRenderError(null), className: "text-white hover:text-red-200", children: "\u00D7" })] }) })), showMusicPicker && project && (_jsx(MusicPicker, { projectId: project.id, onSelectTrack: handleSelectMusic, onClose: () => setShowMusicPicker(false) })), showExportModal && template && project && renderId && (_jsx(ExportModal, { renderId: renderId, projectId: project.id, projectName: project.name, template: template.schema, slotFills: project.slotFills, musicUrl: project.musicUrl || undefined, onClose: () => {
+                    setShowExportModal(false);
+                    setRenderId(null);
+                } }))] }));
+};
