@@ -15,8 +15,8 @@ Creators pick a template, fill slots (images, text), add music/voiceover, and ex
 | 0 | Repo scaffolding, Docker, DB, CI/CD, shared types | ✅ DONE |
 | 1 | Template gallery, slot-fill editor, Remotion preview, MP4 export | ✅ DONE |
 | 1.5 | URL intake pipeline — fetch Instagram/TikTok videos via yt-dlp | ✅ DONE |
-| 2 | AI text/image suggestions, music library | 🔄 IN PROGRESS |
-| 3 | Direct publish to Instagram & TikTok, scheduling | 📋 PLANNED |
+| 2 | AI text/image suggestions, music library | ✅ DONE |
+| 3 | Direct publish to Instagram & TikTok, scheduling | 🔄 IN PROGRESS |
 | 4 | AI template extraction from video collections | 📋 PLANNED |
 
 ---
@@ -98,11 +98,22 @@ P1.5-T01 (Spec) → P1.5-T02 (yt-dlp Service) → P1.5-T03 (API + Queue) → P1.
 | P2-T09 | Test — AI Service Unit Tests | Tester | P2-T03 | ✅ DONE |
 | P2-T10 | Test — Music API Integration Tests | Tester | P2-T07 | ✅ DONE |
 
-### Phase 3+ — Planned (IDs reserved)
+### Phase 3 — Direct Publishing + Scheduling
+
+| ID | Title | Role | Depends | Status |
+|---|---|---|---|---|
+| P3-T01 | Spec — Publishing & Scheduling API | Planner | P1-T13 | ✅ DONE |
+| P3-T02 | Implement Social Auth Service (OAuth) | Dev | P3-T01 | ✅ DONE |
+| P3-T03 | Implement Publish Service (Instagram + TikTok) | Dev | P3-T02 | ✅ DONE |
+| P3-T04 | Implement Publish & Schedule API Routes | Dev | P3-T03 | ✅ DONE |
+| P3-T05 | Frontend — Publish & Schedule UI | Dev | P3-T04 | ✅ DONE |
+| P3-T06 | Test — Publish Service Unit Tests | Tester | P3-T04 | ✅ DONE |
+| P3-T07 | Test — Publishing Integration Tests | Tester | P3-T04 | ✅ DONE |
+
+### Phase 4 — Planned (IDs reserved)
 
 | Range | Area |
 |---|---|
-| P3-T01 – P3-T07 | Direct publish to Instagram & TikTok, scheduling |
 | P4-T01 – P4-T07 | AI template extraction from video collections |
 
 ---

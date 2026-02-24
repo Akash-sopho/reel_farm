@@ -6,18 +6,13 @@
 
 ---
 
-## All Phase 2 Tasks Complete ✅
+## Active Queue — immediately startable
 
-All 10 tasks for Phase 2 (AI Suggestions + Music Library) have been completed:
-- ✅ P2-T01: Spec — AI Suggestion API
-- ✅ P2-T02: Implement Unified AI Service
-- ✅ P2-T03: Implement AI Text + Image Routes
-- ✅ P2-T04: Frontend — AI Suggestion Buttons in Editor
-- ✅ P2-T05: Spec — Music Library API
-- ✅ P2-T06: Seed Music Library (20 tracks)
-- ✅ P2-T07: Implement Music Library API
-- ✅ P2-T08: Frontend — Music Picker in Editor
-- ✅ P2-T09: Test — AI Service Integration Tests
-- ✅ P2-T10: Test — Music API Integration Tests
+*Phase 3 Complete!* All publishing tasks done (P3-T01 through P3-T07). Awaiting Phase 4 task definitions.
 
-**Next phase:** Phase 3 — Direct Publishing to Instagram & TikTok, Scheduling (pending supervisor planning)
+---
+
+## Upcoming — blocked
+
+| ID | Title | Blocked by |
+|---|---|---|
